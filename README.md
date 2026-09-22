@@ -1,10 +1,20 @@
-# Arduino Blocks
+<div align="center">
 
-Application web open source de **programmation Arduino par blocs**, pensée pour les débutants (ados et adultes) : assembler des blocs dans le navigateur, voir le C++ généré en direct, compiler dans le cloud et téléverser sur une vraie carte **Arduino Uno** — sans rien installer.
+# 🧩 Arduino Blocks
 
-**Site :** https://arduino.rayroud.com · **Licence :** GPL-3.0
+**Programmez un Arduino par blocs, dans le navigateur — sans rien installer.**
 
-![Stack](https://img.shields.io/badge/Blockly-13.3-00979D) ![Board](https://img.shields.io/badge/board-Arduino%20Uno-teal) ![Lang](https://img.shields.io/badge/lang-FR%20%2F%20EN-blue)
+Assemblez des blocs, voyez le **C++ généré en direct**, compilez dans le cloud, **simulez** sur une carte virtuelle et téléversez sur une vraie **Arduino Uno**. Pensé pour les enfant, ados et débutants.
+
+<!-- badges -->
+![Version](https://img.shields.io/github/v/release/Kexii-dev/arduino-blocks?color=00979D)
+![Licence](https://img.shields.io/github/license/Kexii-dev/arduino-blocks?color=teal)
+![CI](https://img.shields.io/github/actions/workflow/status/Kexii-dev/arduino-blocks/ci.yml?branch=main&label=CI)
+![Blockly](https://img.shields.io/badge/Blockly-13.3-00979D)
+![Board](https://img.shields.io/badge/board-Arduino%20Uno-teal)
+![Lang](https://img.shields.io/badge/lang-FR%20%2F%20EN-blue)
+
+[🌐 Démo en ligne](https://arduino.rayroud.com) · [📚 Documentation](docs/) · [🛠 Contribuer](CONTRIBUTING.md) · [📋 Roadmap](TODO.md)
 
 ---
 
@@ -109,3 +119,14 @@ GPL-3.0 — voir [LICENSE](LICENSE). Projet dérivé de l'expérience BlocklyDui
 | [zxcvbn](https://github.com/dropbox/zxcvbn) | MIT | jauge de force des mots de passe |
 
 > Les fichiers vendored (`src/sim/intelhex.js`, `src/sim/task-scheduler.js`) proviennent de la démo officielle [wokwi/avr8js](https://github.com/wokwi/avr8js) (MIT) et conservent leur en-tête de licence d'origine.
+
+---
+
+<div align="center">
+
+**🛡️ Sécurité** : [`SECURITY.md`](SECURITY.md) — signalez toute vulnérabilité en privé.
+**⚖️ Conduite** : [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)
+
+**Développé avec ❤️ pour l'apprentissage du code — [Contribuez !](CONTRIBUTING.md)**
+
+</div>
