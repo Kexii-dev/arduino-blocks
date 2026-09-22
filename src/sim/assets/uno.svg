@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="100%" height="100%">
+  <defs>
+    <style>
+      .board { fill: #008184; stroke: #005F61; stroke-width: 4; rx: 15px; }
+      .component { fill: #222222; stroke: #444444; stroke-width: 1; }
+      .pin-header { fill: #111111; stroke: #333333; }
+      .pin-hole { fill: #D4AF37; stroke: #AA8415; stroke-width: 1; }
+      .metal { fill: #CCCCCC; stroke: #AAAAAA; }
+      .led-off { fill: #555555; stroke: #333333; }
+      .text-label { font-family: 'Arial', sans-serif; font-size: 12px; fill: #FFFFFF; font-weight: bold; }
+      .text-pin { font-family: 'Courier New', monospace; font-size: 10px; fill: #FFFFFF; }
+      .interactive { transition: all 0.3s ease; cursor: pointer; }
+      .interactive:hover { fill: #FFD700 !important; filter: drop-shadow(0px 0px 8px #FFD700); }
+      .interactive-text:hover { fill: #000000 !important; }
+    </style>
+  </defs>
+
+  <rect x="50" y="50" width="700" height="500" class="board" />
+
+  <g class="interactive">
+    <rect x="20" y="90" width="110" height="90" class="metal" rx="5" />
+    <rect x="40" y="105" width="70" height="60" fill="#EAEAEA" rx="2" />
+    <text x="60" y="140" font-family="Arial" font-size="14" fill="#666" font-weight="bold">USB</text>
+  </g>
+
+  <g class="interactive">
+    <rect x="20" y="380" width="130" height="90" class="component" rx="3" />
+    <rect x="15" y="405" width="20" height="40" fill="#111111" />
+    <circle cx="85" cy="425" r="15" fill="#111111" />
+    <text x="45" y="430" class="text-label" fill="#888">PWR JACK</text>
+  </g>
+
+  <g class="interactive">
+    <rect x="200" y="400" width="50" height="50" class="component" />
+    <rect x="205" y="390" width="40" height="10" class="metal" />
+    <rect x="210" y="450" width="5" height="15" class="metal" />
+    <rect x="222" y="450" width="5" height="15" class="metal" />
+    <rect x="235" y="450" width="5" height="15" class="metal" />
+  </g>
+
+  <g class="interactive">
+    <rect x="70" y="65" width="40" height="40" fill="#C2C2C2" stroke="#999" rx="5" />
+    <circle cx="90" cy="85" r="12" fill="#CD5C5C" />
+    <text x="68" y="120" class="text-label" font-size="10">RESET</text>
+  </g>
+
+  <g class="interactive">
+    <rect x="320" y="270" width="280" height="60" class="component" rx="2" />
+    <path d="M 320 290 A 10 10 0 0 1 320 310 Z" fill="#111" />
+    <path d="M 335 260 L 335 270 M 355 260 L 355 270 M 375 260 L 375 270 M 395 260 L 395 270 M 415 260 L 415 270 M 435 260 L 435 270 M 455 260 L 455 270 M 475 260 L 475 270 M 495 260 L 495 270 M 515 260 L 515 270 M 535 260 L 535 270 M 555 260 L 555 270 M 575 260 L 575 270 M 595 260 L 595 270" stroke="#CCC" stroke-width="3" />
+    <path d="M 335 330 L 335 340 M 355 330 L 355 340 M 375 330 L 375 340 M 395 330 L 395 340 M 415 330 L 415 340 M 435 330 L 435 340 M 455 330 L 455 340 M 475 330 L 475 340 M 495 330 L 495 340 M 515 330 L 515 340 M 535 330 L 535 340 M 555 330 L 555 340 M 575 330 L 575 340 M 595 330 L 595 340" stroke="#CCC" stroke-width="3" />
+    <text x="400" y="305" class="text-label" font-size="14" letter-spacing="2">ATMEGA328P-PU</text>
+  </g>
+
+  <g class="interactive">
+    <rect x="220" y="125" width="15" height="35" class="metal" rx="3" />
+    <text x="212" y="175" class="text-label" font-size="9">16MHz</text>
+  </g>
+
+  <g class="interactive"><circle cx="630" cy="120" r="6" class="led-off" data-pin="13" /><text x="642" y="124" class="text-label" font-size="10">L</text></g>
+  <g class="interactive"><circle cx="580" cy="165" r="6" class="led-off" data-led="tx" /><text x="592" y="169" class="text-label" font-size="10">TX</text></g>
+  <g class="interactive"><circle cx="580" cy="185" r="6" class="led-off" data-led="rx" /><text x="592" y="189" class="text-label" font-size="10">RX</text></g>
+  <g class="interactive"><circle cx="680" cy="440" r="6" class="led-off" data-led="on" /><text x="695" y="444" class="text-label" font-size="10">ON</text></g>
+
+  <g class="interactive digital-l">
+    <rect x="300" y="52" width="230" height="25" class="pin-header" />
+    <circle cx="312" cy="64" r="5" class="pin-hole" /><circle cx="332" cy="64" r="5" class="pin-hole" />
+    <circle cx="352" cy="64" r="5" class="pin-hole" /><circle cx="372" cy="64" r="5" class="pin-hole" />
+    <circle cx="392" cy="64" r="5" class="pin-hole" /><circle cx="412" cy="64" r="5" class="pin-hole" />
+    <circle cx="432" cy="64" r="5" class="pin-hole" /><circle cx="452" cy="64" r="5" class="pin-hole" />
+    <circle cx="472" cy="64" r="5" class="pin-hole" /><circle cx="492" cy="64" r="5" class="pin-hole" />
+    <circle cx="512" cy="64" r="5" class="pin-hole" />
+    <text x="305" y="92" class="text-pin">SCL SDA AREF GND 13  12  11  10  9   8</text>
+    <text x="350" y="110" class="text-label" font-size="11">DIGITAL (PWM~)</text>
+  </g>
+
+  <g class="interactive digital-r">
+    <rect x="540" y="52" width="170" height="25" class="pin-header" />
+    <circle cx="552" cy="64" r="5" class="pin-hole" /><circle cx="572" cy="64" r="5" class="pin-hole" />
+    <circle cx="592" cy="64" r="5" class="pin-hole" /><circle cx="612" cy="64" r="5" class="pin-hole" />
+    <circle cx="632" cy="64" r="5" class="pin-hole" /><circle cx="652" cy="64" r="5" class="pin-hole" />
+    <circle cx="672" cy="64" r="5" class="pin-hole" /><circle cx="692" cy="64" r="5" class="pin-hole" />
+    <text x="548" y="92" class="text-pin">7   6   5   4   3   2  TX1 RX0</text>
+  </g>
+
+  <g class="interactive">
+    <rect x="280" y="523" width="180" height="25" class="pin-header" />
+    <circle cx="292" cy="535" r="5" class="pin-hole" /><circle cx="312" cy="535" r="5" class="pin-hole" />
+    <circle cx="332" cy="535" r="5" class="pin-hole" /><circle cx="352" cy="535" r="5" class="pin-hole" />
+    <circle cx="372" cy="535" r="5" class="pin-hole" /><circle cx="392" cy="535" r="5" class="pin-hole" />
+    <circle cx="412" cy="535" r="5" class="pin-hole" /><circle cx="432" cy="535" r="5" class="pin-hole" />
+    <text x="283" y="515" class="text-pin">IOREF RST 3.3V 5V  GND GND Vin</text>
+    <text x="330" y="495" class="text-label" font-size="11">POWER</text>
+  </g>
+
+  <g class="interactive analog">
+    <rect x="480" y="523" width="140" height="25" class="pin-header" />
+    <circle cx="492" cy="535" r="5" class="pin-hole" /><circle cx="512" cy="535" r="5" class="pin-hole" />
+    <circle cx="532" cy="535" r="5" class="pin-hole" /><circle cx="552" cy="535" r="5" class="pin-hole" />
+    <circle cx="572" cy="535" r="5" class="pin-hole" /><circle cx="592" cy="535" r="5" class="pin-hole" />
+    <text x="487" y="515" class="text-pin">A0  A1  A2  A3  A4  A5</text>
+    <text x="505" y="495" class="text-label" font-size="11">ANALOG IN</text>
+  </g>
+
+  <text x="420" y="200" font-family="Arial Black" font-size="28" fill="#005F61" opacity="0.4" font-weight="bold">ARDUINO UNO</text>
+</svg>
