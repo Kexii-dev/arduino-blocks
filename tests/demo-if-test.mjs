@@ -2,7 +2,7 @@
 import * as BlocklyNS from 'blockly/core';
 import * as libraryBlocks from 'blockly/blocks';
 import * as Fr from 'blockly/msg/fr';
-import { defineArduinoBlocks, arduinoGenerator, buildSketch } from './src/arduino.js';
+import { defineArduinoBlocks, arduinoGenerator, buildSketch } from '../src/arduino.js';
 const Blockly = BlocklyNS.Generator ? BlocklyNS : (BlocklyNS.default || BlocklyNS);
 Blockly.setLocale(Fr);
 defineArduinoBlocks();

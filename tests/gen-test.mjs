@@ -2,8 +2,8 @@
 import * as BlocklyNS from 'blockly/core';
 import * as libraryBlocks from 'blockly/blocks'; // contrôles/conditions par défaut
 import * as Fr from 'blockly/msg/fr';
-import { defineArduinoBlocks } from './src/blocks.js';
-import { arduinoGenerator, buildSketch } from './src/generator.js';
+import { defineArduinoBlocks } from '../src/blocks.js';
+import { arduinoGenerator, buildSketch } from '../src/generator.js';
 
 // Portable Node/navigateur
 const Blockly = BlocklyNS.Generator ? BlocklyNS : (BlocklyNS.default || BlocklyNS);

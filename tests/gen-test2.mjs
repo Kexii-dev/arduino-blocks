@@ -2,9 +2,9 @@
 import * as BlocklyNS from 'blockly/core';
 import * as libraryBlocks from 'blockly/blocks';
 import * as Fr from 'blockly/msg/fr';
-import { defineArduinoBlocks } from './src/blocks.js';
-import { arduinoGenerator, buildSketch } from './src/generator.js';
-import { declareVar } from './src/vars.js';
+import { defineArduinoBlocks } from '../src/blocks.js';
+import { arduinoGenerator, buildSketch } from '../src/generator.js';
+import { declareVar } from '../src/vars.js';
 
 const Blockly = BlocklyNS.Generator ? BlocklyNS : (BlocklyNS.default || BlocklyNS);
 Blockly.setLocale(Fr);

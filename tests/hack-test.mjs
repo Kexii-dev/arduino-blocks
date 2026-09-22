@@ -1,5 +1,5 @@
 // Test du parseur + explicateur d'erreurs de compilation
-import { parseErrors, explainError } from './src/hack.js';
+import { parseErrors, explainError } from '../src/hack.js';
 
 const samples = [
   {
