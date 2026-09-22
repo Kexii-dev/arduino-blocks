@@ -10,11 +10,20 @@ blocs ──► moteur ──► VirtualBoard ──(onPinChange)──► Board
               └──────────┘  relais boutons/sliders → registres
 ```
 
-- **`board.js`** — `VirtualBoard` : modèle engine-agnostic (pins, LEDs, sliders A0-A5, boutons, buzzer, console série). API : `digitalWrite`, `analogRead`, `setDigitalPin`, `isOutputHigh`, `onPinChange`.
-- **`board-ui.js`** — rendu SVG Arduino Uno (`viewBox 0 0 560 320`) : LED_BUILTIN dédiée (la LED « L », reliée à la pin 13) + témoins D2-D13, boutons D2/D3, 6 sliders, buzzer D11.
+- **`board.js`** — `VirtualBoard` : modèle engine-agnostic (pins, LEDs, sliders A0-A5, boutons, buzzer, console série). API : `digitalWrite`, `analogRead`, `setDigitalPin`, `isOutputHigh`, `onPinChange`. `digitalRead`/`setButton` acceptent **n'importe quelle pin 2-13** (pas seulement D2/D3).
+- **`board-ui.js`** — rendu SVG Arduino Uno (`viewBox 0 0 820 780`) : LED_BUILTIN dédiée (la LED « L », reliée à la pin 13) + témoins D2-D13, **pins digitales dynamiques** (bouton si entrée, LED si sortie), 6 sliders, buzzer D11.
 - **`engine-virtual.js`** + **`generator-js.js`** — moteur **virtuel** : les blocs sont traduits en JS (fausse API Arduino `fake`), exécutés en boucle async via `new Function('fake','HIGH','LOW', body)`. Instantané, zéro compile, 100 % client.
 - **`engine-avr8js.js`** + **`avr-runner.js`** + **`intelhex.js`** + **`task-scheduler.js`** — moteur **réel** : POST `/api/compile` → `.hex` → CPU ATmega328p émulé (ports B/C/D, 3 timers, USART, ADC) via `avr8js` + bootstrap vendored depuis la démo officielle wokwi/avr8js (MIT). Timings réels.
-- **`sim.js`** — contrôleur du panneau : assemble les deux moteurs + `VirtualBoard` + `BoardUI`, bouton « Simuler », sélecteur de mode, hook du moteur réel uniquement.
+- **`sim.js`** — contrôleur du panneau : assemble les deux moteurs + `VirtualBoard` + `BoardUI`, bouton « Simuler », sélecteur de mode, hook du moteur réel uniquement. Au `run()`, appelle `ui.setPinModes(collectPinModes(getWorkspace()))`.
+
+### Pins digitales dynamiques selon le mode
+
+Une pin programmée en **entrée** (`digitalRead`) affiche un **bouton nommé** (ex. D2) pressable pour la tester ; en **sortie** (`digitalWrite`/LED) une **LED nommée** (ex. D4) qui s'allume si HIGH. Plus de boutons figés D2/D3.
+
+- **`collectPinModes(ws)`** (`generator.js`) : déduit `INPUT`/`OUTPUT` de chaque pin depuis les blocs du workspace. C'est la **source de vérité partagée** entre le C++ généré (`collectPreamble` l'utilise pour émettre les `pinMode`) et le simulateur (affichage bouton/LED).
+- **`BoardUI.setPinModes(map)`** : stocke le mode de chaque pin puis re-rend la rangée DIGITAL via `_renderDigitalControls()`.
+- **Zone de contrôle à 2 rangées** : **DIGITAL** (boutons/LEDs dynamiques) + **ANALOG** (sliders A0-A5 + buzzer).
+- `_onModel` allume la LED nommée de la rangée quand la pin passe HIGH.
 
 **Fenêtre flottante** : `#simPanelWrap` (un `<aside>`) est déplaçable par la barre de titre, redimensionnable par la poignée bas-droite, agrandissable plein écran (⛶/🗗) et fermable (✕). La logique de fenêtre (drag/resize/clamp/maximiser) vit dans `src/main.js`.
 
@@ -113,6 +122,9 @@ FQBN fixe : `arduino:avr:uno`.
 | `gen-test4.mjs` | cas additionnels |
 | `hack-test.mjs` (7) | parse + explication des erreurs C++ |
 | `account-flow-test.mjs` | flux compte complet (backend mock) |
+| `sim-virtual-test.mjs` (9) | moteur virtuel : génération JS + exécution blink |
+| `sim-pinmodes-test.mjs` (16) | mapping INPUT/OUTPUT (`collectPinModes`) + lecture pin arbitraire |
+| `sim-dynamic-pins-test.mjs` | navigateur réel : bouton D2 + LED D4 selon le mode |
 | `diag*.mjs` | harnais navigateur playwright-core (rendu réel, console, screenshots) |
 
 Pattern portable Node : `const Blockly = BlocklyNS.Generator ? BlocklyNS : (BlocklyNS.default || BlocklyNS);` (sous Node, `blockly/core` résout en CJS via `.default`). Workspace headless : `new Blockly.Workspace()` — **pas jsdom**.
