@@ -8,6 +8,8 @@ import { initCompile } from './compile.js';
 import { initAccount } from './account.js';
 import { VARS } from './vars.js';
 import { FUNCTIONS } from './functions.js';
+import { initSim } from './sim/sim.js';
+import { api } from './api.js';
 import './style.css';
 
 defineArduinoBlocks();
@@ -306,6 +308,28 @@ document.getElementById('clearBtn').addEventListener('click', () => {
 
 /* ---------- Compiler / Téléverser ---------- */
 initCompile(getSource);
+
+/* ---------- Simulation (virtuelle + AVR8js réelle) ---------- */
+const simPanelWrap = document.getElementById('simPanelWrap');
+const simBtn = document.getElementById('simBtn');
+let simOpen = false;
+const sim = initSim({
+  containerId: 'simPanel',
+  getWorkspace: () => ws,
+  getSource,
+  getArduinoGenerator: () => arduinoGenerator,
+  compile: async (source) => {
+    try { return await api('/compile', { method: 'POST', body: { source } }); }
+    catch (e) { return e.json || { ok: false, error: (e && e.message) || String(e) }; }
+  },
+});
+function toggleSim() {
+  simOpen = !simOpen;
+  if (simPanelWrap) simPanelWrap.style.display = simOpen ? 'block' : 'none';
+  if (simBtn) simBtn.classList.toggle('hl', simOpen);
+  if (!simOpen) sim.stop();
+}
+if (simBtn) simBtn.addEventListener('click', toggleSim);
 
 /* ---------- Comptes + programmes (sérialisation JSON) ---------- */
 initAccount({

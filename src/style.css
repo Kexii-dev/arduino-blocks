@@ -125,6 +125,28 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 #compileStatus.err { background: #3a0d0d; border-color: #ff6b6b; color: #ffd7d7; }
 #compileStatus.warn { background: #3a2a0d; border-color: #ffb55c; color: #ffe9c9; }
 
+/* ---- Panneau simulation (virtuelle + AVR8js) ---- */
+#simPanelWrap { position: fixed; inset: 0 auto 0 0; width: min(560px, 94vw); background: #181a1c;
+                border-right: 1px solid #333; z-index: 9500; overflow-y: auto; padding: 10px; }
+#simPanel { display: flex; flex-direction: column; gap: 8px; }
+.sim-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sim-title { color: #9fd8db; font-weight: 700; font-size: 14px; }
+.sim-mode { background: #252526; color: #d4d4d4; border: 1px solid #3c3c3c; border-radius: 6px; padding: 6px 8px; font-size: 12px; }
+.sim-board { background: #202224; border-radius: 10px; padding: 4px; }
+.sim-board-svg { width: 100%; height: auto; display: block; }
+.sim-btn { cursor: pointer; }
+.sim-knob { cursor: ns-resize; }
+.sim-status { color: #7fd; font-size: 12px; flex-basis: 100%; }
+.sim-status.err { color: #ff8b8b; }
+.sim-serial { background: #0d1216; border: 1px solid #233a2d; border-radius: 8px; margin-top: 4px; }
+.sim-serial-title { color: #8ec9a5; font-size: 11px; padding: 6px 10px; font-weight: 700;
+                    display: flex; justify-content: space-between; align-items: center; }
+.sim-serial-clear { cursor: pointer; font-weight: 400; text-decoration: underline; color: #6aa; font-size: 10px; }
+.sim-serial-body { margin: 0; padding: 4px 10px 10px; min-height: 40px; max-height: 120px; overflow-y: auto;
+                   color: #b8f0cf; font-family: monospace; font-size: 12px; white-space: pre-wrap; }
+#simRun { background: #00878f; }
+#simStop { background: #8f2d2d; }
+
 /* ---- responsive tablette / PC ---- */
 @media (pointer: coarse) {
   .pal-btn, .tbtn, .acct-btn { min-height: 44px; font-size: 15px; }

@@ -19,6 +19,7 @@
       </select>
       <button class="tbtn" id="exBtn" type="button" title="Exemple">💡</button>
       <button class="tbtn" id="codeBtn" type="button" title="Code C++">&lt;/&gt;</button>
+      <button class="tbtn" id="simBtn" type="button" title="Simulation">🔌</button>
       <button class="tbtn" id="acctTopBtn" type="button" title="Compte et programmes">👤</button>
       <button class="tbtn" id="clearBtn" type="button" title="Effacer">🗑</button>
     </div>
@@ -32,6 +33,11 @@
       <div class="hint" id="hint"></div>
     </aside>
   </main>
+
+  <!-- Panneau simulation (2 moteurs : virtuelle + AVR8js réelle) -->
+  <aside id="simPanelWrap" style="display:none">
+    <div id="simPanel"></div>
+  </aside>
 
   <!-- libs vendues (pas de CDN) -->
   <script src="./lib/zxcvbn.js"></script>
