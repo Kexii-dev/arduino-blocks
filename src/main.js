@@ -6,6 +6,7 @@ import { arduinoDarkTheme } from './theme.js';
 import { setLocale, getLang, t, applyUI } from './i18n.js';
 import { initCompile } from './compile.js';
 import { initAccount } from './account.js';
+import { VARS } from './vars.js';
 
 defineArduinoBlocks();
 setLocale(getLang()); // Doit être posé AVANT Blockly.inject : sinon les labels ARIA
@@ -30,7 +31,29 @@ function refreshCode() {
   const pre = document.getElementById('code');
   if (pre) pre.textContent = buildSketch(ws, arduinoGenerator);
 }
-ws.addChangeListener(refreshCode);
+/* Synchronise le registre VARS avec les blocs `arduino_var_create` du workspace,
+   pour que les dropdowns dynamiques listent les variables déclarées. */
+function syncVars() {
+  VARS.clear();
+  for (const b of ws.getAllBlocks()) {
+    if (b.type === 'arduino_var_create') {
+      const n = b.getFieldValue('NAME');
+      if (n) VARS.set(n, b.getFieldValue('TYPE') === 'text' ? 'text' : 'number');
+    }
+  }
+}
+function rerenderAll() {
+  for (const b of ws.getAllBlocks()) { try { b.render(); } catch (_) { /* ignore */ } }
+}
+ws.addChangeListener((e) => {
+  syncVars();
+  // un bloc variable créé/supprimé -> re-rendre pour rafraîchir les dropdowns dynamiques
+  if (e && (e.type === 'create' || e.type === 'delete')) {
+    const b = e.blockId ? ws.getBlockById(e.blockId) : null;
+    if (b && b.type === 'arduino_var_create') rerenderAll();
+  }
+  refreshCode();
+});
 function getSource() { return buildSketch(ws, arduinoGenerator); }
 
 /* ---------- Extension du DOM du workspace pour drag/selection (option B) ---------- */
@@ -71,6 +94,7 @@ const CATEGORIES = [
     { t: 'math_random_int', l: '🎲 Aléatoire' },
   ]},
   { id: 'donnees', label: '💾 Variables', blocks: [
+    { t: 'arduino_var_create', l: '🆕 Créer variable' },
     { t: 'arduino_var_set', l: '📥 Mettre variable' },
     { t: 'arduino_var_change', l: '📈 Augmenter' },
     { t: 'arduino_var_get', l: '👁 Lire variable' },
@@ -185,11 +209,13 @@ initCompile(getSource);
 initAccount({
   getJson: () => JSON.stringify(Blockly.serialization.workspaces.save(ws)),
   loadJson: (s) => {
-    const data = JSON.parse(s);
-    ws.clear();
-    Blockly.serialization.workspaces.load(data, ws);
-    refreshCode();
-  },
+      const data = JSON.parse(s);
+      ws.clear();
+      Blockly.serialization.workspaces.load(data, ws);
+      syncVars();
+      rerenderAll();
+      refreshCode();
+    },
   getCode: getSource,
   clearWorkspace: () => { ws.clear(); refreshCode(); },
 });

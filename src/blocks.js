@@ -1,6 +1,7 @@
 import * as BlocklyNS from 'blockly/core';
 /* Portable navigateur (ESM) / Node (CJS core-node.js) : sous Node l'objet complet est dans .default. */
 const Blockly = BlocklyNS.Generator ? BlocklyNS : (BlocklyNS.default || BlocklyNS);
+import { varOptions, varOptionsAll } from './vars.js';
 
 /* Définition des blocs Arduino (I/O, temps, condition). Les blocs de logique,
    boucles, maths et variables viennent de `blockly/blocks` (libraryBlocks). */
@@ -125,40 +126,52 @@ export function defineArduinoBlocks() {
       colour: '#6a2dc0',
       tooltip: 'Oriente un servomoteur (0-180°) — nécessite le brancher sur 5V/GND/signal.',
     },
-    /* --- variables simples (champ de noms, adapté débutants) --- */
-    {
-      type: 'arduino_var_set',
-      message0: 'mettre %1 à %2',
-      args0: [
-        { type: 'field_dropdown', name: 'VAR',
-          options: [['valeur','valeur'],['x','x'],['y','y'],['compteur','compteur'],['v','v'],['t','t']] },
-        { type: 'input_value', name: 'V' },
-      ],
-      previousStatement: null, nextStatement: null,
-      colour: '#3b9c5e',
-      tooltip: 'Affecte un nombre à une variable.',
-    },
-    {
-      type: 'arduino_var_change',
-      message0: 'augmenter %1 de %2',
-      args0: [
-        { type: 'field_dropdown', name: 'VAR',
-          options: [['valeur','valeur'],['x','x'],['y','y'],['compteur','compteur'],['v','v'],['t','t']] },
-        { type: 'field_number', name: 'DELTA', value: 1, precision: 1 },
-      ],
-      previousStatement: null, nextStatement: null,
-      colour: '#3b9c5e',
-      tooltip: 'Ajoute un nombre à une variable.',
-    },
-    {
-      type: 'arduino_var_get',
-      message0: '%1',
-      args0: [{ type: 'field_dropdown', name: 'VAR',
-                options: [['valeur','valeur'],['x','x'],['y','y'],['compteur','compteur'],['v','v'],['t','t']] }],
-      output: null,
-      colour: '#3b9c5e',
-      tooltip: 'La valeur d\u0027une variable.',
-    },
+    /* --- variables typées (nombre | texte) --- */
+        {
+          type: 'arduino_var_create',
+          message0: 'créer la variable %1 de type %2',
+          args0: [
+            { type: 'field_input', name: 'NAME', text: 'compteur' },
+            { type: 'field_dropdown', name: 'TYPE',
+              options: [['nombre', 'number'], ['texte', 'text']] },
+          ],
+          previousStatement: null, nextStatement: null,
+          colour: '#3b9c5e',
+          tooltip: 'Déclare une variable. Choisis le type : nombre (int) ou texte (String).',
+        },
+        {
+          type: 'arduino_var_set',
+          message0: 'mettre %1 à %2',
+          args0: [
+            { type: 'field_dropdown', name: 'VAR',
+              options: varOptionsAll() },
+            { type: 'input_value', name: 'V' },
+          ],
+          previousStatement: null, nextStatement: null,
+          colour: '#3b9c5e',
+          tooltip: 'Affecte une valeur à une variable.',
+        },
+        {
+          type: 'arduino_var_change',
+          message0: 'augmenter %1 de %2',
+          args0: [
+            { type: 'field_dropdown', name: 'VAR',
+              options: varOptions('number') },
+            { type: 'field_number', name: 'DELTA', value: 1, precision: 1 },
+          ],
+          previousStatement: null, nextStatement: null,
+          colour: '#3b9c5e',
+          tooltip: 'Ajoute un nombre à une variable.',
+        },
+        {
+          type: 'arduino_var_get',
+          message0: '%1',
+          args0: [{ type: 'field_dropdown', name: 'VAR',
+                    options: varOptionsAll() }],
+          output: null,
+          colour: '#3b9c5e',
+          tooltip: 'La valeur de la variable.',
+        },
     /* --- série (débogage) --- */
     {
       type: 'arduino_serial_init',
@@ -207,7 +220,7 @@ export function defineArduinoBlocks() {
           args0: [
             { type: 'input_value', name: 'TEXT' },
             { type: 'field_dropdown', name: 'VAR',
-              options: [['message','message'],['texte','texte'],['nom','nom'],['s','s']] },
+              options: varOptions('text') },
           ],
           previousStatement: null, nextStatement: null,
           colour: '#a5745b',

@@ -55,7 +55,8 @@ arduinoGenerator.forBlock['arduino_servo'] = function (block) {
   return 'servo_' + pin + '.write(' + block.getFieldValue('DEG') + ');\n';
 };
 
-/* ---- variables simples ---- */
+/* ---- variables typées ---- */
+arduinoGenerator.forBlock['arduino_var_create'] = function () { return ''; }; // déclaration émise dans le préambule
 arduinoGenerator.forBlock['arduino_var_set'] = function (block, generator) {
   const v = generator.valueToCode(block, 'V', arduinoGenerator.ORDER_ASSIGNMENT) || '0';
   return block.getFieldValue('VAR') + ' = ' + v + ';\n';
@@ -184,32 +185,39 @@ export function collectPreamble(ws, gen) {
   const setupLines = [];       // ex: 'pinMode(9, OUTPUT);', 'servo_9.attach(9);', 'Serial.begin(9600);'
   const pins = new Map();      // pin -> mode OUTPUT/INPUT (digital)
     const servos = new Set();    // pins servo (globaux + attach)
-    const vars = new Set();      // noms de variables utilisées
-    const textVars = new Set();  // noms de variables texte (String)
-    let baud = null;
+        const varTypes = new Map();  // nom -> 'number' | 'text' (déclaré ou déduit)
+        let baud = null;
 
-    for (const b of ws.getAllBlocks()) {
-      if (!b.type) continue;
-      if (b.type === 'arduino_digital_write') pins.set(b.getFieldValue('PIN'), 'OUTPUT');
-      else if (b.type === 'arduino_digital_read') pins.set(b.getFieldValue('PIN'), 'INPUT');
-      else if (b.type === 'arduino_servo') servos.add(b.getFieldValue('PIN'));
-      else if (b.type === 'arduino_var_set' || b.type === 'arduino_var_get' || b.type === 'arduino_var_change')
-        vars.add(b.getFieldValue('VAR'));
-      else if (b.type === 'arduino_text_append') textVars.add(b.getFieldValue('VAR'));
-      else if (b.type === 'arduino_serial_init' && baud == null) baud = b.getFieldValue('BAUD');
-    }
+        for (const b of ws.getAllBlocks()) {
+          if (!b.type) continue;
+          if (b.type === 'arduino_digital_write') pins.set(b.getFieldValue('PIN'), 'OUTPUT');
+          else if (b.type === 'arduino_digital_read') pins.set(b.getFieldValue('PIN'), 'INPUT');
+          else if (b.type === 'arduino_servo') servos.add(b.getFieldValue('PIN'));
+          else if (b.type === 'arduino_var_create') {
+            const n = b.getFieldValue('NAME');
+            if (n) varTypes.set(n, b.getFieldValue('TYPE') === 'text' ? 'text' : 'number');
+          }
+          else if (b.type === 'arduino_var_set' || b.type === 'arduino_var_get' || b.type === 'arduino_var_change') {
+            const n = b.getFieldValue('VAR');
+            if (n && !varTypes.has(n)) varTypes.set(n, 'number');
+          }
+          else if (b.type === 'arduino_text_append') {
+            const n = b.getFieldValue('VAR');
+            if (n && !varTypes.has(n)) varTypes.set(n, 'text');
+          }
+          else if (b.type === 'arduino_serial_init' && baud == null) baud = b.getFieldValue('BAUD');
+        }
 
-    if (servos.size) {
-      globals.push('#include <Servo.h>');
-      for (const pin of servos) {
-        globals.push('Servo servo_' + pin + ';');
-        setupLines.push('servo_' + pin + '.attach(' + pin + ');');
-      }
-    }
-    for (const [pin, mode] of pins) setupLines.push('pinMode(' + pin + ', ' + mode + ');');
-    for (const v of vars) globals.push('int ' + v + ' = 0;');
-    for (const v of textVars) globals.push('String ' + v + ' = "";');
-    if (baud != null) setupLines.unshift('Serial.begin(' + baud + ');');
+        if (servos.size) {
+          globals.push('#include <Servo.h>');
+          for (const pin of servos) {
+            globals.push('Servo servo_' + pin + ';');
+            setupLines.push('servo_' + pin + '.attach(' + pin + ');');
+          }
+        }
+        for (const [pin, mode] of pins) setupLines.push('pinMode(' + pin + ', ' + mode + ');');
+        for (const [v, t] of varTypes) globals.push(t === 'text' ? 'String ' + v + ' = "";' : 'int ' + v + ' = 0;');
+        if (baud != null) setupLines.unshift('Serial.begin(' + baud + ');');
 
   return { globals: globals.join('\n') + (globals.length ? '\n' : ''), setupLines };
 }
