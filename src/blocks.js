@@ -2,6 +2,7 @@ import * as BlocklyNS from 'blockly/core';
 /* Portable navigateur (ESM) / Node (CJS core-node.js) : sous Node l'objet complet est dans .default. */
 const Blockly = BlocklyNS.Generator ? BlocklyNS : (BlocklyNS.default || BlocklyNS);
 import { varOptions, varOptionsAll } from './vars.js';
+import { functionOptions } from './functions.js';
 
 /* Définition des blocs Arduino (I/O, temps, condition). Les blocs de logique,
    boucles, maths et variables viennent de `blockly/blocks` (libraryBlocks). */
@@ -261,8 +262,7 @@ export function defineArduinoBlocks() {
           type: 'arduino_function_call',
           message0: 'appeler %1',
           args0: [{ type: 'field_dropdown', name: 'NAME',
-                    options: [['maFonction','maFonction'],['clignoter','clignoter'],['avancer','avancer']] }],
-          previousStatement: null, nextStatement: null,
+                    options: functionOptions() }],
           colour: '#8a2be2',
           tooltip: 'Exécute une fonction définie plus haut.',
         },

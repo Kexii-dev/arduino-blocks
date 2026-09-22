@@ -89,7 +89,7 @@ Déclarer d'abord avec **« créer la variable »**, puis les dropdowns listent 
 | Fonction F { corps } | `arduino_function` | `void F() { … }` — émise en global **avant** `setup()` (jamais dans `loop()`) |
 | Appeler F | `arduino_function_call` | `F();` |
 
-⚠️ Le dropdown « appeler » liste des noms fixes (`maFonction`, `clignoter`, `avancer`) — renommez la fonction ou ajoutez le nom dans la liste déroulante. Amélioration prévue : dropdown dynamique comme les variables.
+✅ Le dropdown « appeler » est **dynamique** : il liste les fonctions réellement définies dans le workspace (menuGenerator, même pattern que les variables). Renommer une fonction met à jour l'appel. Si aucune fonction n'est définie, il affiche « (définir une fonction avant) ».
 
 ## Exemple complet
 

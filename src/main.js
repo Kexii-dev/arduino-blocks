@@ -7,6 +7,8 @@ import { setLocale, getLang, t, applyUI } from './i18n.js';
 import { initCompile } from './compile.js';
 import { initAccount } from './account.js';
 import { VARS } from './vars.js';
+import { FUNCTIONS } from './functions.js';
+import './style.css';
 
 defineArduinoBlocks();
 setLocale(getLang()); // Doit être posé AVANT Blockly.inject : sinon les labels ARIA
@@ -42,25 +44,67 @@ function syncVars() {
     }
   }
 }
+/* Synchronise le registre FUNCTIONS avec les blocs `arduino_function` du workspace,
+   pour que le dropdown d'appel liste les fonctions réellement définies. */
+function syncFunctions() {
+  FUNCTIONS.clear();
+  for (const b of ws.getAllBlocks()) {
+    if (b.type === 'arduino_function') {
+      const n = b.getFieldValue('NAME');
+      if (n) FUNCTIONS.add(n);
+    }
+  }
+}
 function rerenderAll() {
   for (const b of ws.getAllBlocks()) { try { b.render(); } catch (_) { /* ignore */ } }
 }
 ws.addChangeListener((e) => {
   syncVars();
-  // un bloc variable créé/supprimé -> re-rendre pour rafraîchir les dropdowns dynamiques
-  if (e && (e.type === 'create' || e.type === 'delete')) {
+  syncFunctions();
+  // un bloc variable/fonction créé/supprimé/renommé -> re-rendre pour rafraîchir
+  // les dropdowns dynamiques (variables + appels de fonction)
+  if (e && (e.type === 'create' || e.type === 'delete' || e.type === 'field')) {
     const b = e.blockId ? ws.getBlockById(e.blockId) : null;
-    if (b && b.type === 'arduino_var_create') rerenderAll();
+    if (b && (b.type === 'arduino_var_create' || b.type === 'arduino_function')) rerenderAll();
   }
   refreshCode();
+  scheduleSave();
 });
 function getSource() { return buildSketch(ws, arduinoGenerator); }
+
+/* ---------- Sauvegarde auto du workspace (localStorage) ---------- */
+const LS_KEY = 'arduino-blocks-workspace';
+let saveTimer = null;
+function saveWorkspace() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(Blockly.serialization.workspaces.save(ws)));
+  } catch (_) { /* stockage indisponible : on ignore */ }
+}
+function scheduleSave() {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveWorkspace, 500);
+}
+function loadSavedWorkspace() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (!data || !data.blocks) return false;
+    Blockly.serialization.workspaces.load(data, ws);
+    syncVars();
+    syncFunctions();
+    rerenderAll();
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
 
 /* ---------- Extension du DOM du workspace pour drag/selection (option B) ---------- */
 
 /* ---------- Palette par catégories (option B : tap-to-add) ---------- */
 const CATEGORIES = [
-  { id: 'action', label: '⚡ Action', blocks: [
+  { id: 'action', label: '⚡ Sorties', blocks: [
     { t: 'arduino_led', l: '💡 LED intégrée' },
     { t: 'arduino_digital_write', l: '✍️ Écrire broche' },
     { t: 'arduino_analog_write', l: '🎚 Écrire PWM' },
@@ -124,8 +168,9 @@ function addBlock(type) {
   block.moveBy(Math.round(40 + Math.random() * 40), Math.round(40 + Math.random() * 40));
   ws.centerOnBlock(block);
   // ws.newBlock ne déclenche PAS d'événement change -> resync manuel du registre
-  syncVars();
-  if (type === 'arduino_var_create') rerenderAll(); // rafraîchir les dropdowns dynamiques
+    syncVars();
+    syncFunctions();
+    if (type === 'arduino_var_create' || type === 'arduino_function') rerenderAll(); // rafraîchir les dropdowns dynamiques
 }
 
 let activeCat = 'action';
@@ -190,8 +235,61 @@ function buildDemo() {
 function setStatus(txt) { const s = document.getElementById('status'); if (s) s.textContent = txt; }
 window.addEventListener('error', (e) => { setStatus('⚠️ ' + (e && e.message ? e.message : 'erreur non capturée')); });
 
-buildDemo();
-refreshCode();
+/* ---------- Démarrage : restaurer le dernier workspace, sinon accueil ---------- */
+const welcome = document.getElementById('welcome');
+function hideWelcome() { if (welcome) welcome.style.display = 'none'; }
+function showWelcome() { if (welcome) welcome.style.display = 'flex'; }
+function loadExample() {
+  ws.clear();
+  buildDemo();
+  refreshCode();
+  scheduleSave();
+  hideWelcome();
+}
+function startNew() {
+  ws.clear();
+  refreshCode();
+  scheduleSave();
+  hideWelcome();
+}
+if (loadSavedWorkspace()) {
+  refreshCode();
+} else {
+  showWelcome();
+}
+
+/* ---------- Accueil (premier lancement) ---------- */
+const wNew = document.getElementById('welcomeNew');
+const wEx = document.getElementById('welcomeExample');
+const wProg = document.getElementById('welcomePrograms');
+if (wNew) wNew.addEventListener('click', startNew);
+if (wEx) wEx.addEventListener('click', loadExample);
+if (wProg) wProg.addEventListener('click', () => {
+  hideWelcome();
+  const b = document.getElementById('acctTopBtn');
+  if (b) b.click();
+});
+
+/* ---------- Bouton Exemple (header) ---------- */
+const exBtn = document.getElementById('exBtn');
+if (exBtn) exBtn.addEventListener('click', () => {
+  if (!confirm(t('clearConfirm'))) return;
+  loadExample();
+});
+
+/* ---------- Panneau C++ repliable ---------- */
+const codePanel = document.getElementById('codePanel');
+const codeBtn = document.getElementById('codeBtn');
+// état explicite : fermé par défaut en tactile (le panneau masque les blocs sur tablette)
+let codePanelOpen = !(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+function setCodePanel(open) {
+  codePanelOpen = open;
+  if (!codePanel) return;
+  codePanel.style.display = open ? 'block' : 'none';
+  if (codeBtn) codeBtn.classList.toggle('hl', open);
+}
+if (codeBtn) codeBtn.addEventListener('click', () => setCodePanel(!codePanelOpen));
+setCodePanel(codePanelOpen);
 
 /* ---------- Langue (FR par défaut ; sélecteur FR/EN) ---------- */
 const langSel = document.getElementById('langSel');
@@ -203,6 +301,7 @@ document.getElementById('clearBtn').addEventListener('click', () => {
   if (!confirm(t('clearConfirm'))) return;
   ws.clear();
   refreshCode();
+  scheduleSave();
 });
 
 /* ---------- Compiler / Téléverser ---------- */
@@ -216,11 +315,13 @@ initAccount({
       ws.clear();
       Blockly.serialization.workspaces.load(data, ws);
       syncVars();
+      syncFunctions();
       rerenderAll();
       refreshCode();
+      scheduleSave();
     },
   getCode: getSource,
-  clearWorkspace: () => { ws.clear(); refreshCode(); },
+  clearWorkspace: () => { ws.clear(); refreshCode(); scheduleSave(); },
 });
 
 applyUI();

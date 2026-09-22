@@ -22,9 +22,9 @@ console.log('erreurs:', errs.length ? errs.join('\n') : 'AUCUNE');
 
 // Test : cliquer Compiler via la vraie UI (proxy -> backend prod)
 await page.waitForTimeout(300);
-await page.click('#rdCompileBtn');
+await page.click('#compileBtn');
 await page.waitForTimeout(4000);
-const comp = await page.evaluate(() => document.getElementById('rdStatus').textContent || '');
+const comp = await page.evaluate(() => document.getElementById('compileStatus').textContent || '');
 console.log('status compile:', comp.slice(0, 220).replace(/\n/g, ' | '));
-console.log('flashBtn visible:', await page.$eval('#rdFlashBtn', el => el.style.display) !== 'none');
+console.log('flashBtn visible:', await page.$eval('#flashBtn', el => el.style.display) !== 'none');
 await browser.close();

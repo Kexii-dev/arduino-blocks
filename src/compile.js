@@ -8,62 +8,70 @@ import { showHackPopup } from './hack.js';
 
 export function initCompile(getSource) {
   let lastResult = null;
+  let hideTimer = null;
 
   const host = document.createElement('div');
   host.innerHTML =
-    '<div id="rdCompile">' +
-    '<div id="rdStatus"></div>' +
-    '<a id="rdDl"></a>' +
-    '<button id="rdCompileBtn" class="rdbtn">Compiler</button>' +
-    '<button id="rdFlashBtn" class="rdbtn"></button>' +
+    '<div id="compileBar">' +
+    '<div id="compileStatus"></div>' +
+    '<a id="compileDl"></a>' +
+    '<button id="compileBtn" class="compile-btn">Compiler</button>' +
+    '<button id="flashBtn" class="compile-btn"></button>' +
     '</div>';
   document.body.appendChild(host);
 
-  const status = document.getElementById('rdStatus');
-  const flashBtn = document.getElementById('rdFlashBtn');
-  const dl = document.getElementById('rdDl');
-  const compBtn = document.getElementById('rdCompileBtn');
+  const status = document.getElementById('compileStatus');
+  const flashBtn = document.getElementById('flashBtn');
+  const dl = document.getElementById('compileDl');
+  const compBtn = document.getElementById('compileBtn');
   flashBtn.textContent = t('flashBtn');
   dl.textContent = t('hexDl');
 
-  function setStatus(msg, showFlash) {
+  /* Affiche le statut avec une icône et une classe de couleur ; auto-masquage
+     au succès après quelques secondes. */
+  function setStatus(msg, kind) {
+    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+    status.className = kind || '';
     status.style.display = msg ? 'block' : 'none';
     status.textContent = msg || '';
-    flashBtn.style.display = (showFlash && lastResult && lastResult.ok) ? 'block' : 'none';
+    flashBtn.style.display = (kind === 'ok' && lastResult && lastResult.ok) ? 'block' : 'none';
+    if (kind === 'ok' && msg) {
+      hideTimer = setTimeout(() => { status.style.display = 'none'; }, 5000);
+    }
   }
   setStatus('');
 
   async function doCompile() {
     const src = getSource();
-    if (!src || !src.trim()) { setStatus(t('noSource'), false); return; }
-    setStatus(t('compileRun'), false);
+    if (!src || !src.trim()) { setStatus('⚠️ ' + t('noSource'), 'warn'); return; }
+    setStatus('⏳ ' + t('compileRun'), '');
     try {
       const res = await api('/compile', { method: 'POST', body: { source: src } });
       if (res.ok) {
         lastResult = res;
         const s = res.size || {};
-        setStatus(t('compileOk') +
+        setStatus('✅ ' + t('compileOk') +
           'Flash: ' + (s.flash != null ? s.flash + ' o (' + s.flash_pct + '%)' : '?') +
           ' · RAM: ' + (s.ram != null ? s.ram + ' o (' + s.ram_pct + '%)' : '?') +
-          '\n' + res.hex_bytes + ' o de .hex', true);
+          '\n' + res.hex_bytes + ' o de .hex', 'ok');
         dl.style.display = 'block';
       } else {
-                    lastResult = null;
-                    setStatus(t('compileErr') + (res.error || 'inconnue'), false);
-                    showHackPopup(res.error || 'Erreur inconnue');
-                  }
-          } catch (e) {
-            if (e.status === 429) { setStatus(t('compile429'), false); return; }
-            // api() lève une exception quand ok:false (contrat partagé avec auth) :
-            // pour /compile c'est une ERREUR DE COMPILATION normale -> popup hacker.
-            if (e.json && e.json.ok === false) {
-              lastResult = null;
-              setStatus(t('compileErr') + (e.json.error || 'inconnue'), false);
-              showHackPopup(e.json.error || 'Erreur inconnue');
-              return;
-            }
-            setStatus(t('compileNet') + (e.message || e), false);
-          }
+        lastResult = null;
+        setStatus('❌ ' + t('compileErr') + (res.error || 'inconnue'), 'err');
+        showHackPopup(res.error || 'Erreur inconnue');
+      }
+    } catch (e) {
+      if (e.status === 429) { setStatus('⚠️ ' + t('compile429'), 'warn'); return; }
+      // api() lève une exception quand ok:false (contrat partagé avec auth) :
+      // pour /compile c'est une ERREUR DE COMPILATION normale -> popup hacker.
+      if (e.json && e.json.ok === false) {
+        lastResult = null;
+        setStatus('❌ ' + t('compileErr') + (e.json.error || 'inconnue'), 'err');
+        showHackPopup(e.json.error || 'Erreur inconnue');
+        return;
+      }
+      setStatus('❌ ' + t('compileNet') + (e.message || e), 'err');
+    }
   }
 
   function hexToArrayBuffer(b64) {
@@ -77,20 +85,20 @@ export function initCompile(getSource) {
   async function doFlash() {
     if (!lastResult || !lastResult.ok) return;
     if (!navigator.serial || !navigator.serial.requestPort) {
-      setStatus(t('flashUnavail'), false); return;
+      setStatus('⚠️ ' + t('flashUnavail'), 'warn'); return;
     }
-    setStatus(t('flashPick'), true);
+    setStatus('🎯 ' + t('flashPick'), '');
     try {
       const avr = new window.AvrgirlArduino({ board: 'uno', debug: true });
       avr.flash(hexToArrayBuffer(lastResult.hex_base64), (err) => {
         if (err) {
-          setStatus(t('flashFail') + (err.message || String(err)) + t('flashFailHint'), false);
+          setStatus('❌ ' + t('flashFail') + (err.message || String(err)) + t('flashFailHint'), 'err');
         } else {
-          setStatus(t('flashOk'), false);
+          setStatus('✅ ' + t('flashOk'), 'ok');
         }
       });
     } catch (e) {
-      setStatus(t('flashFail') + (e.message || e), false);
+      setStatus('❌ ' + t('flashFail') + (e.message || e), 'err');
     }
   }
 

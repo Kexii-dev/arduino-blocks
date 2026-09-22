@@ -21,7 +21,7 @@ const code = await page.evaluate(() => (document.getElementById('code')||{}).tex
 console.log('C++ contient maFonction();:', code.includes('maFonction();'));
 
 // cliquer Compiler
-await page.evaluate(() => document.getElementById('rdCompileBtn').click());
+await page.evaluate(() => document.getElementById('compileBtn').click());
 await page.waitForTimeout(5000);
 const popup = await page.evaluate(() => ({
   open: !!document.querySelector('.hack-overlay'),

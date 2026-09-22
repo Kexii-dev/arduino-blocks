@@ -35,24 +35,24 @@
 
 | # | Quoi | Priorité | Détail |
 |---|---|---|---|
-| 1 | Dropdown **fonctions dynamique** | 🔴 haute | `arduino_function_call` liste des noms fixes → renommer une fonction casse l'appel. Refaire en menuGenerator (pattern variables) |
-| 2 | **Restaurer le dernier workspace** au chargement | 🔴 haute | La démo est réinjectée à chaque fois ; sauvegarder en `localStorage` + bouton « Exemple » explicite |
-| 3 | Extraire le CSS inline de `index.html` | 🟡 moyenne | ~100 lignes → `src/style.css` (bundlé par Vite) |
-| 4 | Sortir `swisstransfer.mjs` du repo public | 🟡 moyenne | Outil d'agent, hors sujet projet |
-| 5 | Renommer les IDs `rd*` hérités du legacy | 🟢 basse | Cosmétique (`rdCompile` → `compileBar`…) |
-| 6 | `package.json` : ajouter `description`, `license`, `repository` | 🟢 basse | Fiche propre |
-| 7 | Fiabiliser les tests navigateur `diag*.mjs` | 🟢 basse | playwright-core en devDependency au lieu de `--no-save` |
+| ~~1~~ ✅ | Dropdown **fonctions dynamique** | 🔴 haute | `arduino_function_call` liste des noms fixes → renommer une fonction casse l'appel. Refaire en menuGenerator (pattern variables) |
+| ~~2~~ ✅ | **Restaurer le dernier workspace** au chargement | 🔴 haute | La démo est réinjectée à chaque fois ; sauvegarder en `localStorage` + bouton « Exemple » explicite |
+| ~~3~~ ✅ | Extraire le CSS inline de `index.html` | 🟡 moyenne | ~100 lignes → `src/style.css` (bundlé par Vite) |
+| ~~4~~ ✅ | Sortir `swisstransfer.mjs` du repo public | 🟡 moyenne | Outil d'agent, hors sujet projet |
+| ~~5~~ ✅ | Renommer les IDs `rd*` hérités du legacy | 🟢 basse | Cosmétique (`rdCompile` → `compileBar`…) |
+| ~~6~~ ✅ | `package.json` : ajouter `description`, `license`, `repository` | 🟢 basse | Fiche propre |
+| ~~7~~ ✅ | Fiabiliser les tests navigateur `diag*.mjs` | 🟢 basse | playwright-core en devDependency au lieu de `--no-save` |
 
 ## 🎨 À FAIRE — Design / UX
 
 | # | Quoi | Priorité | Détail |
 |---|---|---|---|
-| 8 | **Panneau C++ repliable** | 🔴 haute | Il chevauche le workspace ; sur tablette (100% de large) il masque les blocs. Bouton `</>`, fermé par défaut en tactile |
-| 9 | Mini-accueil au premier lancement | 🟡 moyenne | Workspace vide au démarrage → 3 cartes : Nouveau / Exemple blink / Mes programmes |
-| 10 | Renommer « ⚡ Action » → « ⚡ Sorties » | 🟡 moyenne | Cohérent avec « Entrées » |
-| 11 | Contraste onglets inactifs + barre sticky | 🟡 moyenne | `#b8b8b8` sur `#2d2d2d` trop faible |
-| 12 | Statut compile plus lisible | 🟡 moyenne | Fond teal foncé, icône ✅/❌, auto-masquage au succès |
-| 13 | Focus visible (`:focus-visible` outline teal) | 🟢 basse | Accessibilité clavier/tablette |
+| ~~8~~ ✅ | **Panneau C++ repliable** | 🔴 haute | Il chevauche le workspace ; sur tablette (100% de large) il masque les blocs. Bouton `</>`, fermé par défaut en tactile |
+| ~~9~~ ✅ | Mini-accueil au premier lancement | 🟡 moyenne | Workspace vide au démarrage → 3 cartes : Nouveau / Exemple blink / Mes programmes |
+| ~~10~~ ✅ | Renommer « ⚡ Action » → « ⚡ Sorties » | 🟡 moyenne | Cohérent avec « Entrées » |
+| ~~11~~ ✅ | Contraste onglets inactifs + barre sticky | 🟡 moyenne | `#b8b8b8` sur `#2d2d2d` trop faible |
+| ~~12~~ ✅ | Statut compile plus lisible | 🟡 moyenne | Fond teal foncé, icône ✅/❌, auto-masquage au succès |
+| ~~13~~ ✅ | Focus visible (`:focus-visible` outline teal) | 🟢 basse | Accessibilité clavier/tablette |
 
 ## 🚀 À FAIRE — Fonctionnalités (décisions produit)
 

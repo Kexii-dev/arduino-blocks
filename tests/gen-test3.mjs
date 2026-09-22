@@ -5,11 +5,13 @@ import * as Fr from 'blockly/msg/fr';
 import { defineArduinoBlocks } from '../src/blocks.js';
 import { arduinoGenerator, buildSketch } from '../src/generator.js';
 import { declareVar } from '../src/vars.js';
+import { declareFunction } from '../src/functions.js';
 
 const Blockly = BlocklyNS.Generator ? BlocklyNS : (BlocklyNS.default || BlocklyNS);
 Blockly.setLocale(Fr);
 defineArduinoBlocks();
 declareVar('message', 'text');
+declareFunction('clignoter');
 const ws = new Blockly.Workspace();
 const mk = (t) => ws.newBlock(t);
 let prev = null;

@@ -10,13 +10,13 @@ await page.waitForTimeout(200);
 await page.evaluate(() => document.querySelectorAll('.pal-btn')[1].click());
 await page.waitForTimeout(300);
 const resp = page.waitForResponse(r => r.url().includes('/api/compile'));
-await page.evaluate(() => document.getElementById('rdCompileBtn').click());
+await page.evaluate(() => document.getElementById('compileBtn').click());
 const r = await resp;
 let body = null; try { body = await r.json(); } catch(e){}
 console.log('HTTP:', r.status(), '| ok:', body && body.ok, '| error:', body && body.error ? body.error.slice(0,120) : '—');
 await page.waitForTimeout(1200);
-const st = await page.evaluate(() => (document.getElementById('rdStatus')||{}).textContent || '');
+const st = await page.evaluate(() => (document.getElementById('compileStatus')||{}).textContent || '');
 const popup = await page.evaluate(() => !!document.querySelector('.hack-overlay'));
-console.log('rdStatus:', JSON.stringify(st));
+console.log('compileStatus:', JSON.stringify(st));
 console.log('popup ouvert:', popup);
 await browser.close();

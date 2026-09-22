@@ -19,14 +19,14 @@ await page.evaluate(() => {
 });
 // intercepter la réponse réseau du compile
 const resp = page.waitForResponse(r => r.url().includes('/api/compile'));
-await page.evaluate(() => document.getElementById('rdCompileBtn').click());
+await page.evaluate(() => document.getElementById('compileBtn').click());
 const r = await resp;
 let body = null; try { body = await r.json(); } catch(e){}
 console.log('HTTP status:', r.status());
 console.log('réponse:', JSON.stringify(body));
 await page.waitForTimeout(1500);
-const st = await page.evaluate(() => (document.getElementById('rdStatus')||{}).textContent || '');
+const st = await page.evaluate(() => (document.getElementById('compileStatus')||{}).textContent || '');
 const popup = await page.evaluate(() => !!document.querySelector('.hack-overlay'));
-console.log('rdStatus:', JSON.stringify(st));
+console.log('compileStatus:', JSON.stringify(st));
 console.log('popup ouvert:', popup);
 await browser.close();

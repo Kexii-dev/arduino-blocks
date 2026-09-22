@@ -1,7 +1,13 @@
 {
   "name": "arduino-blocks",
+  "version": "0.2.0",
+  "description": "Programmation Arduino par blocs pour enfants et débutants — Blockly 13.3, compile cloud, flash Web Serial, comptes cloud.",
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kexii-dev/arduino-blocks.git"
+  },
   "private": true,
-  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,6 +19,7 @@
     "blockly": "^13.3.0"
   },
   "devDependencies": {
+    "playwright-core": "^1.49.0",
     "vite": "^7.3.6"
   }
 }
