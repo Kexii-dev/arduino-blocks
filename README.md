@@ -76,6 +76,7 @@ Les tests tournent en Node headless (`new Blockly.Workspace()`, pas de jsdom). L
 
 ## Documentation
 
+- 📋 [TODO.md](TODO.md) — état du projet & feuille de route
 - 📐 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — structure du code, contrat API, pièges connus
 - 🧱 [docs/BLOCKS.md](docs/BLOCKS.md) — catalogue des blocs et le code C++ généré par chacun
 - 🤝 [CONTRIBUTING.md](CONTRIBUTING.md) — comment ajouter un bloc, conventions, tests
