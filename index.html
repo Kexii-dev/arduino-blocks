@@ -16,6 +16,11 @@
     header .tag { font-size: 11px; color: #808080; }
     #status { font-size: 12px; color: #00979D; }
     .palette { display: flex; gap: 8px; flex-wrap: wrap; }
+    .catnav { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0; }
+    .cat-tab { background: #2d2d2d; color: #b8b8b8; border: 1px solid #3c3c3c; border-radius: 6px;
+               padding: 7px 12px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+    .cat-tab.active { background: #00979D; color: #fff; border-color: #00979D; }
+    .blockrow { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0; }
     .pal-btn { background: #2d2d2d; color: #e8e8e8; border: 1px solid #3c3c3c; border-radius: 6px;
                padding: 7px 12px; font-size: 13px; cursor: pointer;
                touch-action: manipulation; user-select: none; }
@@ -111,8 +116,8 @@
     <h1>Arduino Blocks</h1>
     <span class="tag">Blockly 13.3 · tactile + souris</span>
     <span id="status"></span>
-    <div class="palette" id="palette"></div>
-    <div class="palette" id="palette-logic"></div>
+    <div class="catnav" id="catNav"></div>
+    <div class="blockrow" id="blockRow"></div>
     <div class="topgrp">
       <select id="langSel" title="Langue / Language">
         <option value="fr">FR</option>

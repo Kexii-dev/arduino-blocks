@@ -35,21 +35,53 @@ function getSource() { return buildSketch(ws, arduinoGenerator); }
 
 /* ---------- Extension du DOM du workspace pour drag/selection (option B) ---------- */
 
-/* ---------- Palette tap-to-add (option B) ---------- */
-const PALETTE = {
-  arduino_led: { label: '💡 LED intégrée' },
-  arduino_digital_write: { label: '✍️ Écrire broche' },
-  arduino_digital_read: { label: '👁️ Lire broche' },
-  arduino_analog_read: { label: '∿ Lire analogique' },
-  arduino_delay: { label: '⏱ Attendre (ms)' },
-};
-const LOGIC = {
-  arduino_if: { label: '❓ Si / alors / sinon' },
-  controls_repeat: { label: '🔁 Répéter N fois' },
-  logic_compare: { label: '⚖ Compare' },
-  logic_operation: { label: '🅰️ ET / OU' },
-  math_number: { label: '＃ Nombre' },
-};
+/* ---------- Palette par catégories (option B : tap-to-add) ---------- */
+const CATEGORIES = [
+  { id: 'action', label: '⚡ Action', blocks: [
+    { t: 'arduino_led', l: '💡 LED intégrée' },
+    { t: 'arduino_digital_write', l: '✍️ Écrire broche' },
+    { t: 'arduino_analog_write', l: '🎚 Écrire PWM' },
+    { t: 'arduino_delay', l: '⏱ Attendre (ms)' },
+  ]},
+  { id: 'lecture', label: '👀 Entrées', blocks: [
+    { t: 'arduino_digital_read', l: '🔘 Lire broche' },
+    { t: 'arduino_analog_read', l: '∿ Lire analogique' },
+    { t: 'arduino_highlow', l: '🔤 Haut / Bas' },
+  ]},
+  { id: 'sons', label: '🔊 Sons & servo', blocks: [
+    { t: 'arduino_tone', l: '🎵 Tonalité' },
+    { t: 'arduino_notone', l: '🔇 Couper tonalité' },
+    { t: 'arduino_servo', l: '🔄 Moteur servo' },
+  ]},
+  { id: 'controle', label: '🧭 Contrôle', blocks: [
+    { t: 'arduino_if', l: '❓ Si / alors / sinon' },
+    { t: 'controls_whileUntil', l: '🔁 Tant que' },
+    { t: 'controls_repeat', l: '🚀 Répéter N fois' },
+  ]},
+  { id: 'logique', label: '⚖️ Logique', blocks: [
+    { t: 'logic_compare', l: '⚖ Compare' },
+    { t: 'logic_operation', l: '🅰️ ET / OU' },
+    { t: 'logic_negate', l: '🚫 Pas' },
+    { t: 'logic_boolean', l: '✅ Vrai / Faux' },
+  ]},
+  { id: 'calcul', label: '🔢 Calculs', blocks: [
+    { t: 'math_number', l: '＃ Nombre' },
+    { t: 'math_arithmetic', l: '➕ − × ÷' },
+    { t: 'math_modulo', l: '➗ Reste (mod)' },
+    { t: 'math_random_int', l: '🎲 Aléatoire' },
+  ]},
+  { id: 'donnees', label: '💾 Variables', blocks: [
+    { t: 'arduino_var_set', l: '📥 Mettre variable' },
+    { t: 'arduino_var_change', l: '📈 Augmenter' },
+    { t: 'arduino_var_get', l: '👁 Lire variable' },
+  ]},
+  { id: 'serie', label: '📡 Série', blocks: [
+    { t: 'arduino_serial_init', l: '🚀 Démarrer série' },
+    { t: 'arduino_serial_print', l: '💬 Envoyer ligne' },
+    { t: 'arduino_serial_read', l: '👂 Lire caractère' },
+    { t: 'arduino_serial_available', l: '📬 Données dispo ?' },
+  ]},
+];
 
 function addBlock(type) {
   const block = ws.newBlock(type);
@@ -59,19 +91,31 @@ function addBlock(type) {
   ws.centerOnBlock(block);
 }
 
-function renderPalette(containerId, spec) {
-  const el = document.getElementById(containerId);
-  for (const type of Object.keys(spec)) {
+let activeCat = 'action';
+function renderCategories() {
+  const nav = document.getElementById('catNav');
+  nav.innerHTML = '';
+  for (const cat of CATEGORIES) {
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'cat-tab' + (cat.id === activeCat ? ' active' : '');
+    tab.textContent = cat.label;
+    tab.addEventListener('click', () => { activeCat = cat.id; renderCategories(); });
+    nav.appendChild(tab);
+  }
+  const cat = CATEGORIES.find((c) => c.id === activeCat);
+  const row = document.getElementById('blockRow');
+  row.innerHTML = '';
+  for (const b of cat.blocks) {
     const btn = document.createElement('button');
     btn.className = 'pal-btn';
     btn.type = 'button';
-    btn.textContent = spec[type].label;
-    btn.addEventListener('click', () => addBlock(type));
-    el.appendChild(btn);
+    btn.textContent = b.l;
+    btn.addEventListener('click', () => addBlock(b.t));
+    row.appendChild(btn);
   }
 }
-renderPalette('palette', PALETTE);
-renderPalette('palette-logic', LOGIC);
+renderCategories();
 
 /* ---------- Démo initiale : SI analogRead(A0) > 500 -> LED allumée, SINON éteinte ---------- */
 function buildDemo() {

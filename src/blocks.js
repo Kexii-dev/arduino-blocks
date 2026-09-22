@@ -78,5 +78,119 @@ export function defineArduinoBlocks() {
       tooltip: 'Condition complète avec une branche sinon.',
       inputsInline: true,
     },
+    /* --- écriture analogique (PWM) --- */
+    {
+      type: 'arduino_analog_write',
+      message0: 'mettre la broche %1 à la puissance %2 (PWM 0-255)',
+      args0: [
+        { type: 'field_dropdown', name: 'PIN',
+          options: [['3','3'],['5','5'],['6','6'],['9','9'],['10','10'],['11','11']] },
+        { type: 'field_number', name: 'VAL', value: 128, min: 0, max: 255, precision: 1 },
+      ],
+      previousStatement: null, nextStatement: null,
+      colour: '#00979D',
+      tooltip: 'Régule la puissance (PWM) sur les broches 3/5/6/9/10/11.',
+    },
+    /* --- tonalité --- */
+    {
+      type: 'arduino_tone',
+      message0: 'jouer une tonalité sur la broche %1 à %2 Hz',
+      args0: [
+        { type: 'field_dropdown', name: 'PIN',
+          options: [['3','3'],['5','5'],['6','6'],['9','9'],['10','10'],['11','11']] },
+        { type: 'field_number', name: 'FREQ', value: 440, min: 31, max: 4000, precision: 1 },
+      ],
+      previousStatement: null, nextStatement: null,
+      colour: '#e7662d',
+      tooltip: 'Émet une tonalité (buzzer/piézo) sur une broche PWM.',
+    },
+    {
+      type: 'arduino_notone',
+      message0: 'stopper la tonalité sur la broche %1',
+      args0: [{ type: 'field_dropdown', name: 'PIN',
+                options: [['3','3'],['5','5'],['6','6'],['9','9'],['10','10'],['11','11']] }],
+      previousStatement: null, nextStatement: null,
+      colour: '#e7662d',
+      tooltip: 'Arrête la tonalité en cours.',
+    },
+    /* --- servomoteur --- */
+    {
+      type: 'arduino_servo',
+      message0: 'moteur servo sur la broche %1 à %2 °',
+      args0: [
+        { type: 'field_dropdown', name: 'PIN', options: [['9','9'],['10','10']] },
+        { type: 'field_number', name: 'DEG', value: 90, min: 0, max: 180, precision: 1 },
+      ],
+      previousStatement: null, nextStatement: null,
+      colour: '#6a2dc0',
+      tooltip: 'Oriente un servomoteur (0-180°) — nécessite le brancher sur 5V/GND/signal.',
+    },
+    /* --- variables simples (champ de noms, adapté débutants) --- */
+    {
+      type: 'arduino_var_set',
+      message0: 'mettre %1 à %2',
+      args0: [
+        { type: 'field_dropdown', name: 'VAR',
+          options: [['valeur','valeur'],['x','x'],['y','y'],['compteur','compteur'],['v','v'],['t','t']] },
+        { type: 'input_value', name: 'V' },
+      ],
+      previousStatement: null, nextStatement: null,
+      colour: '#3b9c5e',
+      tooltip: 'Affecte un nombre à une variable.',
+    },
+    {
+      type: 'arduino_var_change',
+      message0: 'augmenter %1 de %2',
+      args0: [
+        { type: 'field_dropdown', name: 'VAR',
+          options: [['valeur','valeur'],['x','x'],['y','y'],['compteur','compteur'],['v','v'],['t','t']] },
+        { type: 'field_number', name: 'DELTA', value: 1, precision: 1 },
+      ],
+      previousStatement: null, nextStatement: null,
+      colour: '#3b9c5e',
+      tooltip: 'Ajoute un nombre à une variable.',
+    },
+    {
+      type: 'arduino_var_get',
+      message0: '%1',
+      args0: [{ type: 'field_dropdown', name: 'VAR',
+                options: [['valeur','valeur'],['x','x'],['y','y'],['compteur','compteur'],['v','v'],['t','t']] }],
+      output: null,
+      colour: '#3b9c5e',
+      tooltip: 'La valeur d\u0027une variable.',
+    },
+    /* --- série (débogage) --- */
+    {
+      type: 'arduino_serial_init',
+      message0: 'démarrer la communication série à %1 bauds',
+      args0: [{ type: 'field_number', name: 'BAUD', value: 9600, min: 300, max: 115200 }],
+      previousStatement: null, nextStatement: null,
+      colour: '#00979D',
+      tooltip: 'Initialise le port série (à placer dans le programme) — ouvre la console série.',
+    },
+    {
+      type: 'arduino_serial_print',
+      message0: 'série : envoyer la ligne %1',
+      args0: [{ type: 'input_value', name: 'TEXT' }],
+      previousStatement: null, nextStatement: null,
+      colour: '#00979D',
+      tooltip: 'Envoie du texte dans la console série (Retour à la ligne).',
+    },
+    {
+      type: 'arduino_serial_read',
+      message0: 'série : lire un caractère',
+      args0: [],
+      output: null,
+      colour: '#00979D',
+      tooltip: 'Lit le prochain caractère reçu sur le port série.',
+    },
+    {
+      type: 'arduino_serial_available',
+      message0: 'série : données disponibles ?',
+      args0: [],
+      output: null,
+      colour: '#00979D',
+      tooltip: 'Vrai si des données arrivent sur le port série.',
+    },
   ]);
 }

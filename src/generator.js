@@ -40,6 +40,73 @@ arduinoGenerator.forBlock['arduino_if'] = function (block, generator) {
   return code;
 };
 
+/* ---- PWM / sons / servo ---- */
+arduinoGenerator.forBlock['arduino_analog_write'] = function (block) {
+  return 'analogWrite(' + block.getFieldValue('PIN') + ', ' + block.getFieldValue('VAL') + ');\n';
+};
+arduinoGenerator.forBlock['arduino_tone'] = function (block) {
+  return 'tone(' + block.getFieldValue('PIN') + ', ' + block.getFieldValue('FREQ') + ');\n';
+};
+arduinoGenerator.forBlock['arduino_notone'] = function (block) {
+  return 'noTone(' + block.getFieldValue('PIN') + ');\n';
+};
+arduinoGenerator.forBlock['arduino_servo'] = function (block) {
+  const pin = block.getFieldValue('PIN');
+  return 'servo_' + pin + '.write(' + block.getFieldValue('DEG') + ');\n';
+};
+
+/* ---- variables simples ---- */
+arduinoGenerator.forBlock['arduino_var_set'] = function (block, generator) {
+  const v = generator.valueToCode(block, 'V', arduinoGenerator.ORDER_ASSIGNMENT) || '0';
+  return block.getFieldValue('VAR') + ' = ' + v + ';\n';
+};
+arduinoGenerator.forBlock['arduino_var_change'] = function (block) {
+  return block.getFieldValue('VAR') + ' += ' + block.getFieldValue('DELTA') + ';\n';
+};
+arduinoGenerator.forBlock['arduino_var_get'] = function (block) {
+  return [block.getFieldValue('VAR'), arduinoGenerator.ORDER_ATOMIC];
+};
+
+/* ---- série ---- */
+arduinoGenerator.forBlock['arduino_serial_init'] = function () { return ''; }; // émise dans setup (preamble)
+arduinoGenerator.forBlock['arduino_serial_print'] = function (block, generator) {
+  const text = generator.valueToCode(block, 'TEXT', arduinoGenerator.ORDER_NONE) || '""';
+  return 'Serial.println(' + text + ');\n';
+};
+arduinoGenerator.forBlock['arduino_serial_read'] = function () {
+  return ['(int)Serial.read()', arduinoGenerator.ORDER_ATOMIC];
+};
+arduinoGenerator.forBlock['arduino_serial_available'] = function () {
+  return ['Serial.available()', arduinoGenerator.ORDER_ATOMIC];
+};
+
+/* ---- boucle tant que + maths de base ---- */
+arduinoGenerator.forBlock['controls_whileUntil'] = function (block, generator) {
+  const cond = generator.valueToCode(block, 'BOOL', arduinoGenerator.ORDER_NONE) || 'false';
+  const body = generator.statementToCode(block, 'DO');
+  const inv = block.getFieldValue('MODE') === 'UNTIL' ? '!' : '';
+  return 'while (' + inv + cond + ') {\n' + body + '}\n';
+};
+arduinoGenerator.forBlock['math_arithmetic'] = function (block, generator) {
+  const O = arduinoGenerator.ORDER_ADDITIVE;
+  const op = { ADD: '+', MINUS: '-', MULTIPLY: '*', DIVIDE: '/', POWER: '**' }[block.getFieldValue('OP')];
+  const a = generator.valueToCode(block, 'A', O) || '0';
+  const b = generator.valueToCode(block, 'B', O) || '0';
+  if (op === '**') return ['pow(' + a + ', ' + b + ')', arduinoGenerator.ORDER_ATOMIC];
+  return [a + ' ' + op + ' ' + b, O];
+};
+arduinoGenerator.forBlock['math_modulo'] = function (block, generator) {
+  const O = arduinoGenerator.ORDER_MULTIPLICATIVE;
+  const a = generator.valueToCode(block, 'DIVIDEND', O) || '0';
+  const b = generator.valueToCode(block, 'DIVISOR', O) || '1';
+  return [a + ' % ' + b, O];
+};
+arduinoGenerator.forBlock['math_random_int'] = function (block, generator) {
+  const a = generator.valueToCode(block, 'FROM', arduinoGenerator.ORDER_NONE) || '0';
+  const b = generator.valueToCode(block, 'TO', arduinoGenerator.ORDER_NONE) || '100';
+  return ['random(' + a + ', ' + b + ' + 1)', arduinoGenerator.ORDER_ATOMIC];
+};
+
 /* ---- handlers logique de base (blocs de `blockly/blocks`) ---- */
 arduinoGenerator.forBlock['controls_repeat'] = function (block, generator) {
   const times = block.getFieldValue('TIMES') || '0';
@@ -80,25 +147,58 @@ arduinoGenerator.scrub_ = function (block, code, opt_thisOnly) {
   return code + nextCode;
 };
 
-/* ---- assemblage setup()/loop() ---- */
-export function collectPinDecls(ws) {
-  const pins = new Map();
+/* ---- assemblage : préambule (includes/globaux) + setup() + loop() ---- */
+export function collectPreamble(ws, gen) {
+  const globals = [];          // ex: 'int valeur = 0;', 'Servo servo_9;'
+  const setupLines = [];       // ex: 'pinMode(9, OUTPUT);', 'servo_9.attach(9);', 'Serial.begin(9600);'
+  const pins = new Map();      // pin -> mode OUTPUT/INPUT (digital)
+  const servos = new Set();    // pins servo (globaux + attach)
+  const vars = new Set();      // noms de variables utilisées
+  let baud = null;
+
   for (const b of ws.getAllBlocks()) {
+    if (!b.type) continue;
     if (b.type === 'arduino_digital_write') pins.set(b.getFieldValue('PIN'), 'OUTPUT');
-    if (b.type === 'arduino_digital_read') pins.set(b.getFieldValue('PIN'), 'INPUT');
+    else if (b.type === 'arduino_digital_read') pins.set(b.getFieldValue('PIN'), 'INPUT');
+    else if (b.type === 'arduino_servo') servos.add(b.getFieldValue('PIN'));
+    else if (b.type === 'arduino_var_set' || b.type === 'arduino_var_get' || b.type === 'arduino_var_change')
+      vars.add(b.getFieldValue('VAR'));
+    else if (b.type === 'arduino_serial_init' && baud == null) baud = b.getFieldValue('BAUD');
   }
-  let s = '';
-  for (const [pin, mode] of pins) s += 'pinMode(' + pin + ', ' + mode + ');\n';
-  return s;
+
+  if (servos.size) {
+    globals.push('#include <Servo.h>');
+    for (const pin of servos) {
+      globals.push('Servo servo_' + pin + ';');
+      setupLines.push('servo_' + pin + '.attach(' + pin + ');');
+    }
+  }
+  for (const [pin, mode] of pins) setupLines.push('pinMode(' + pin + ', ' + mode + ');');
+  for (const v of vars) globals.push('int ' + v + ' = 0;');
+  if (baud != null) setupLines.unshift('Serial.begin(' + baud + ');');
+
+  return { globals: globals.join('\n') + (globals.length ? '\n' : ''), setupLines };
+}
+
+/* N'émet que les blocs-racines STATEMENTS (qui ont une suite next/prev) : un bloc
+   "valeur" laissé orphelin (Nombre, Lire analogique…) générerait une ligne nue
+   (`42` ou `analogRead(A0)` sans `;`) qui casse la compile. On le saute. */
+function emitRoots(gen, ws) {
+  let code = '';
+  for (const b of ws.getTopBlocks(true)) {
+    if (b.outputConnection) continue; // bloc-valeur orphelin
+    code += gen.blockToCode(b) || '';
+  }
+  return code;
 }
 
 export function buildSketch(ws, generator) {
   const gen = generator || arduinoGenerator;
-  const loop = gen.workspaceToCode(ws);
+  const loop = emitRoots(gen, ws);
   const ind = (s) => s.split('\n').map((l) => (l ? '  ' + l : l)).join('\n');
-  const setupBody = collectPinDecls(ws);
+  const pre = collectPreamble(ws, gen);
   const header = '// Arduino Blocks — généré avec Blockly 13.3\n';
-  const setup = 'void setup() {\n' + (setupBody ? ind(setupBody) + '\n' : '') + '}\n';
+  const setup = 'void setup() {\n' + (pre.setupLines.length ? ind(pre.setupLines.join('\n')) + '\n' : '') + '}\n';
   const loopF = 'void loop() {\n' + (loop ? ind(loop) : '') + '}\n';
-  return header + setup + '\n' + loopF;
+  return header + pre.globals + setup + '\n' + loopF;
 }
