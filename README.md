@@ -15,6 +15,7 @@ Application web open source de **programmation Arduino par blocs**, pensée pour
 - ⚙️ **Générateur Arduino C++ maison** : produit `setup()` + `loop()` avec préambule automatique (`pinMode`, `#include <Servo.h>` + `attach`, `Serial.begin`, déclarations de variables).
 - ☁️ **Compilation cloud** : le sketch est envoyé à un backend `arduino-cli` (conteneur Docker) qui renvoie le `.hex` + les tailles flash/RAM.
 - 🔌 **Téléversement depuis le navigateur** via Web Serial (`avrgirl-arduino`) — aucune installation, fonctionne avec les clones CH340.
+- 🕹️ **Simulateur** intégré (bouton 🔌) dans une **fenêtre flottante** déplaçable, redimensionnable et agrandissable plein écran — **deux moteurs** : un **virtuel** instantané (blocs → JS, 100 % navigateur, sans compile) et un **vrai émulateur AVR8js** (compile cloud → `.hex` → ATmega328p, timers/ADC/USART réels). Carte Uno SVG partagée : LED_BUILTIN dédiée, témoins D2-D13, boutons, 6 potentiomètres analogiques, buzzer, console série.
 - 🖥️ **Popup « hacker » pédagogique** : en cas d'erreur de compilation, chaque erreur C++ est traduite en explication claire pour débutants (en français).
 - 👤 **Comptes utilisateurs** (ados) : sessions cookie httpOnly, mots de passe scrypt côté serveur, jauge **zxcvbn**, vérification de fuites **Have I Been Pwned en k-anonymité** (le mot de passe ne quitte jamais le navigateur), générateur de phrases diceware.
 - 💾 **Programmes sauvegardés** dans le cloud (SQLite côté backend), liés au compte.
@@ -87,11 +88,24 @@ Les tests tournent en Node headless (`new Blockly.Workspace()`, pas de jsdom). L
 
 ## Roadmap
 
-- [ ] **Simulateur dans le navigateur** (blocs → JS virtuel, carte SVG) — analyse de faisabilité faite, approche 2 d'abord puis AVR8js en v2
+- [x] **Simulateur** : moteur virtuel + émulateur AVR8js réel, fenêtre flottante agrandissable — **déployé en prod**
+- [ ] Brancher des composants additionnels sur le VirtualBoard (capteurs, afficheur)
 - [ ] Validation physique du flash sur vraies cartes (CH340 / ATmega16U2)
 - [ ] Support d'autres cartes (Nano, Mega, ESP32)
 - [ ] Mode hors-ligne PWA
 
 ## Licence
 
-GPL-3.0 — voir [LICENSE](LICENSE). Projet dérivé de l'expérience BlocklyDuino v2 (GPL-3.0), réécrit sur Blockly 13.3.
+GPL-3.0 — voir [LICENSE](LICENSE). Projet dérivé de l'expérience BlocklyDuino v2 (GPL-3.0), réécrit sur [Blockly 13.3](https://github.com/RaspberryPiFoundation/blockly) (Apache-2.0).
+
+### Licences tierces
+
+| Composant | Licence | Usage |
+|---|---|---|
+| [Blockly 13.3](https://github.com/RaspberryPiFoundation/blockly) | Apache-2.0 | éditeur de blocs |
+| [avr8js](https://github.com/wokwi/avr8js) (core npm) | MIT | émulation ATmega328p |
+| Bootstrap avr8js (démo wokwi : `intelhex.js`, `task-scheduler.js`, config ports/timers) | MIT | démarrage du simulateur réel |
+| [avrgirl-arduino](https://github.com/noopkat/avrgirl-arduino) | MIT | téléversement Web Serial |
+| [zxcvbn](https://github.com/dropbox/zxcvbn) | MIT | jauge de force des mots de passe |
+
+> Les fichiers vendored (`src/sim/intelhex.js`, `src/sim/task-scheduler.js`) proviennent de la démo officielle [wokwi/avr8js](https://github.com/wokwi/avr8js) (MIT) et conservent leur en-tête de licence d'origine.

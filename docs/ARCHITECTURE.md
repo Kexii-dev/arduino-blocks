@@ -1,5 +1,27 @@
 # Architecture
 
+## Simulateur (2 moteurs, carte SVG partagée)
+
+La simulation vit dans `src/sim/` et repose sur une architecture `onPinChange(pin, value)` : un **modèle partagé** (`VirtualBoard`) est piloté par n'importe quel moteur, et un seul rendu SVG (`BoardUI`) écoute les changements. Changer de moteur = brancher une autre couche de code, pas toucher à la carte.
+
+```
+blocs ──► moteur ──► VirtualBoard ──(onPinChange)──► BoardUI (SVG Uno)
+              │          │
+              └──────────┘  relais boutons/sliders → registres
+```
+
+- **`board.js`** — `VirtualBoard` : modèle engine-agnostic (pins, LEDs, sliders A0-A5, boutons, buzzer, console série). API : `digitalWrite`, `analogRead`, `setDigitalPin`, `isOutputHigh`, `onPinChange`.
+- **`board-ui.js`** — rendu SVG Arduino Uno (`viewBox 0 0 560 320`) : LED_BUILTIN dédiée (la LED « L », reliée à la pin 13) + témoins D2-D13, boutons D2/D3, 6 sliders, buzzer D11.
+- **`engine-virtual.js`** + **`generator-js.js`** — moteur **virtuel** : les blocs sont traduits en JS (fausse API Arduino `fake`), exécutés en boucle async via `new Function('fake','HIGH','LOW', body)`. Instantané, zéro compile, 100 % client.
+- **`engine-avr8js.js`** + **`avr-runner.js`** + **`intelhex.js`** + **`task-scheduler.js`** — moteur **réel** : POST `/api/compile` → `.hex` → CPU ATmega328p émulé (ports B/C/D, 3 timers, USART, ADC) via `avr8js` + bootstrap vendored depuis la démo officielle wokwi/avr8js (MIT). Timings réels.
+- **`sim.js`** — contrôleur du panneau : assemble les deux moteurs + `VirtualBoard` + `BoardUI`, bouton « Simuler », sélecteur de mode, hook du moteur réel uniquement.
+
+**Fenêtre flottante** : `#simPanelWrap` (un `<aside>`) est déplaçable par la barre de titre, redimensionnable par la poignée bas-droite, agrandissable plein écran (⛶/🗗) et fermable (✕). La logique de fenêtre (drag/resize/clamp/maximiser) vit dans `src/main.js`.
+
+**⚠️ Piège CSS** : un `<aside>` reçoit la règle générique `aside { max-width: 74vw }` qui plafonne la fenêtre à 74 % de l'écran même en plein écran → `#simPanelWrap` ET `.sim-max` doivent forcer `max-width: none` + `max-height: none`.
+
+---
+
 ## Vue d'ensemble
 
 Front **statique** (Vite → build `dist/`), servi par nginx. Aucun framework UI : DOM natif + Blockly. Le backend (compile + comptes) est un service séparé derrière `/api/`.
