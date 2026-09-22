@@ -148,29 +148,61 @@ export class BoardUI {
     if (!g) return;
     while (g.firstChild) g.removeChild(g.firstChild);
     this.buttons = {};
+    this.btnState = {}; // pin -> boolean (interrupteur à bascule ON/OFF)
     let x = 26;
+    // Passe 1 : toutes les entrées (interrupteurs) à gauche
     for (let p = 2; p <= 13; p++) {
       const mode = this.pinModes[p] || this.pinModes['' + p];
-      if (mode === 'INPUT') {
-        // Bouton pressable nommé
-        const b = el('g', { transform: 'translate(' + x + ',' + (DIG_Y + 34) + ')', 'data-pin': p, class: 'sim-btn' });
-        b.appendChild(el('rect', { x: 0, y: 0, width: 52, height: 28, rx: 6, fill: '#c0392b', stroke: '#7d2418', 'stroke-width': 1.5 }));
-        b.appendChild(el('rect', { x: 6, y: 6, width: 40, height: 16, rx: 4, fill: '#a93226' }));
-        b.appendChild(el('text', { x: 26, y: 46, fill: '#eee', 'font-size': 9, 'font-family': 'monospace', 'text-anchor': 'middle' }, ['D' + p]));
-        this.buttons[p] = b;
-        g.appendChild(b);
-        x += 64;
-      } else if (mode === 'OUTPUT') {
-        // LED nommée
-        const l = el('g', { transform: 'translate(' + x + ',' + (DIG_Y + 34) + ')', 'data-pin': p, class: 'sim-dig-led' });
-        l.appendChild(el('circle', { cx: 26, cy: 14, r: 11, fill: '#2a2c30', stroke: '#777', 'stroke-width': 1.5, class: 'sim-dig-led-dot' }));
-        l.appendChild(el('text', { x: 26, y: 46, fill: '#eee', 'font-size': 9, 'font-family': 'monospace', 'text-anchor': 'middle' }, ['D' + p]));
-        this.buttons[p] = l;
-        g.appendChild(l);
-        x += 64;
-      }
+      if (mode !== 'INPUT') continue;
+      // Interrupteur à bascule ON/OFF nommé (track + curseur + étiquette O/I)
+      const b = el('g', { transform: 'translate(' + x + ',' + (DIG_Y + 38) + ')', 'data-pin': p, class: 'sim-btn' });
+      b.appendChild(el('rect', { x: 0, y: 0, width: 52, height: 26, rx: 13, fill: '#2b2e31', stroke: '#4a4e53', 'stroke-width': 1.2, class: 'sim-sw-track' }));
+      b.appendChild(el('rect', { x: 3, y: 3, width: 46, height: 20, rx: 10, fill: 'none', stroke: '#1d2023', 'stroke-width': 1 }));
+      b.appendChild(el('circle', { cx: 13, cy: 13, r: 9, fill: '#e8eaed', stroke: '#9aa0a6', 'stroke-width': 1, class: 'sim-sw-knob' }));
+      b.appendChild(el('circle', { cx: 11, cy: 9.5, r: 3, fill: '#fff', opacity: .55 }));
+      b.appendChild(el('text', { x: 9.5, y: 18, fill: '#7d848c', 'font-size': 7, 'font-family': 'monospace', 'text-anchor': 'middle' }, ['O']));
+      b.appendChild(el('text', { x: 42.5, y: 18, fill: '#7d848c', 'font-size': 7, 'font-family': 'monospace', 'text-anchor': 'middle' }, ['I']));
+      b.appendChild(el('text', { x: 26, y: 43, fill: '#eee', 'font-size': 9, 'font-family': 'monospace', 'text-anchor': 'middle' }, ['D' + p]));
+      this.buttons[p] = b;
+      this.btnState[p] = false;
+      g.appendChild(b);
+      x += 68;
+    }
+    // Passe 2 : toutes les sorties (LEDs) alignées TOUT À DROITE de la rangée
+    const outPins = [];
+    for (let p = 2; p <= 13; p++) {
+      const m = this.pinModes[p] || this.pinModes['' + p];
+      if (m === 'OUTPUT') outPins.push(p);
+    }
+    // bord droit fixe (rangée 800 de large, marge ~20) ; on remonte vers la gauche
+    let lx = 757 - (outPins.length - 1) * 68;
+    for (const p of outPins) {
+      const l = el('g', { transform: 'translate(' + lx + ',' + (DIG_Y + 34) + ')', 'data-pin': p, class: 'sim-dig-led' });
+      l.appendChild(el('circle', { cx: 26, cy: 14, r: 17, fill: 'none', class: 'sim-dig-led-halo' }));
+      l.appendChild(el('circle', { cx: 26, cy: 14, r: 12, fill: '#1c1f22', stroke: '#3a3e43', 'stroke-width': 1.5 }));
+      l.appendChild(el('circle', { cx: 26, cy: 14, r: 10, fill: '#2a2c30', stroke: '#555', 'stroke-width': 1, class: 'sim-dig-led-dot' }));
+      l.appendChild(el('ellipse', { cx: 22, cy: 10, rx: 4, ry: 2.5, fill: '#fff', opacity: .5, class: 'sim-dig-led-gloss' }));
+      l.appendChild(el('text', { x: 26, y: 46, fill: '#eee', 'font-size': 9, 'font-family': 'monospace', 'text-anchor': 'middle' }, ['D' + p]));
+      this.buttons[p] = l;
+      g.appendChild(l);
+      lx += 68;
     }
     this._bindButtons();
+  }
+
+  /** Repaint un interrupteur selon son état ON/OFF (track teal/grau, curseur coulé). */
+  _paintSwitch(pin) {
+    const g = this.buttons[pin];
+    if (!g) return;
+    const on = !!this.btnState[pin];
+    const track = g.querySelector('.sim-sw-track');
+    const knob = g.querySelector('.sim-sw-knob');
+    if (track) {
+      track.setAttribute('fill', on ? '#00979D' : '#2b2e31');
+      track.setAttribute('stroke', on ? '#0ec4cc' : '#4a4e53');
+    }
+    if (knob) knob.setAttribute('cx', on ? 39 : 13);
+    g.setAttribute('class', 'sim-btn' + (on ? ' on' : ''));
   }
 
   _bindButtons() {
@@ -178,15 +210,18 @@ export class BoardUI {
       const g = this.buttons[pin];
       if (g._bound) continue;
       g._bound = true;
-      const press = (down) => (ev) => {
+      // Interrupteur à bascule : un clic/tap inverse l'état et le verrouille.
+      g.addEventListener('pointerdown', (ev) => {
         ev.preventDefault();
-        g.setAttribute('opacity', down ? 0.7 : 1);
-        this.board.setButton(+pin, down);
-        if (this.hooks.setButton) this.hooks.setButton(+pin, down);
-      };
-      g.addEventListener('pointerdown', press(true));
-      g.addEventListener('pointerup', press(false));
-      g.addEventListener('pointerleave', press(false));
+      });
+      g.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        this.btnState[pin] = !this.btnState[pin];
+        this._paintSwitch(+pin);
+        const val = this.btnState[pin] ? 1 : 0;
+        this.board.setButton(+pin, val);
+        if (this.hooks.setButton) this.hooks.setButton(+pin, val);
+      });
     }
   }
 
@@ -252,15 +287,22 @@ export class BoardUI {
         pin.led.setAttribute('stroke', pinOn ? '#ffe08a' : '#777');
       }
       // LED nommée de la rangée de contrôle (si la pin est en sortie)
-      const ctrl = this.buttons[p.pin];
-      if (ctrl && this.pinModes[p.pin] === 'OUTPUT') {
-        const dot = ctrl.querySelector('.sim-dig-led-dot');
-        if (dot) {
-          const on2 = p.value > 0;
-          dot.setAttribute('fill', on2 ? ON : '#2a2c30');
-          dot.setAttribute('stroke', on2 ? '#ffe08a' : '#777');
-        }
-      }
+            const ctrl = this.buttons[p.pin];
+            if (ctrl && this.pinModes[p.pin] === 'OUTPUT') {
+              const dot = ctrl.querySelector('.sim-dig-led-dot');
+              const halo = ctrl.querySelector('.sim-dig-led-halo');
+              const gloss = ctrl.querySelector('.sim-dig-led-gloss');
+              const on2 = p.value > 0;
+              if (dot) {
+                dot.setAttribute('fill', on2 ? '#ffcc4d' : '#2a2c30');
+                dot.setAttribute('stroke', on2 ? '#ffe08a' : '#555');
+              }
+              if (halo) {
+                halo.setAttribute('fill', on2 ? 'rgba(255,204,77,0.35)' : 'none');
+                halo.setAttribute('stroke', on2 ? 'rgba(255,204,77,0.6)' : 'none');
+              }
+              if (gloss) gloss.setAttribute('opacity', on2 ? 0.85 : 0.5);
+            }
     } else if (kind === 'analog') {
       if (this.sliders['' + p.channel]) this._renderAll();
     } else if (kind === 'tone') {
