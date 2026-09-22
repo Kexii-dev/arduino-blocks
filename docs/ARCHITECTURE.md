@@ -20,10 +20,16 @@ blocs ──► moteur ──► VirtualBoard ──(onPinChange)──► Board
 
 Une pin programmée en **entrée** (`digitalRead`) affiche un **bouton nommé** (ex. D2) pressable pour la tester ; en **sortie** (`digitalWrite`/LED) une **LED nommée** (ex. D4) qui s'allume si HIGH. Plus de boutons figés D2/D3.
 
-- **`collectPinModes(ws)`** (`generator.js`) : déduit `INPUT`/`OUTPUT` de chaque pin depuis les blocs du workspace. C'est la **source de vérité partagée** entre le C++ généré (`collectPreamble` l'utilise pour émettre les `pinMode`) et le simulateur (affichage bouton/LED).
+- **`collectPinModes(ws)`** (`generator.js`) : déduit `INPUT`/`OUTPUT`/`PWM` de chaque pin depuis les blocs du workspace. C'est la **source de vérité partagée** entre le C++ généré (`collectPreamble` l'utilise pour émettre les `pinMode`, en mappant `PWM`→`OUTPUT`) et le simulateur (affichage bouton/LED/slider).
 - **`BoardUI.setPinModes(map)`** : stocke le mode de chaque pin puis re-rend la rangée DIGITAL via `_renderDigitalControls()`.
 - **Zone de contrôle à 2 rangées** : **DIGITAL** (boutons/LEDs dynamiques) + **ANALOG** (sliders A0-A5 + buzzer).
 - `_onModel` allume la LED nommée de la rangée quand la pin passe HIGH.
+
+### Partie analogique (sliders)
+
+- **A0-A5 = entrées** (`analogRead`) : sliders **horizontaux, 2 par ligne** (3 lignes), **déplaçables** par l'utilisateur. Piste grise + **partie active teal** (fill) + **pourcentage à droite** (remplace le tag entrée/sortie).
+- **Pins PWM 3/5/6/9/10/11 = sorties** (`analogWrite`) : sliders **read-only orange** que **l'app fait bouger** (`_renderPwmSliders()` + `_onModel` sur kind `pwm`). L'utilisateur ne peut pas les toucher.
+- Rangée ANALOG agrandie (`ANA_H=170`, viewBox `0 0 820 880`).
 
 **Fenêtre flottante** : `#simPanelWrap` (un `<aside>`) est déplaçable par la barre de titre, redimensionnable par la poignée bas-droite, agrandissable plein écran (⛶/🗗) et fermable (✕). La logique de fenêtre (drag/resize/clamp/maximiser) vit dans `src/main.js`.
 
