@@ -7,6 +7,7 @@ import { BoardUI } from './board-ui.js';
 import { VirtualEngine } from './engine-virtual.js';
 import { Avr8Engine } from './engine-avr8js.js';
 import { jsGenerator } from './generator-js.js';
+import { collectPinModes } from '../generator.js';
 
 export function initSim(opts) {
   const { getWorkspace, getSource, getArduinoGenerator, compile, containerId, statusEl } = opts;
@@ -71,11 +72,13 @@ export function initSim(opts) {
   }
 
   async function run() {
-    stopAll();
-    const mode = modeSel.value;
-    runningEngine = mode;
-    setStatus('⏳ démarrage…');
-    if (mode === 'virtual') {
+      stopAll();
+      const mode = modeSel.value;
+      runningEngine = mode;
+      setStatus('⏳ démarrage…');
+      // Pins digitales dynamiques : bouton si entrée, LED si sortie (selon le programme)
+      ui.setPinModes(collectPinModes(getWorkspace()));
+      if (mode === 'virtual') {
       const ws = getWorkspace();
       const vEng = new VirtualEngine(ws, jsGenerator, board, {
         speed: 1,

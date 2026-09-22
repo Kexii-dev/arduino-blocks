@@ -180,10 +180,24 @@ arduinoGenerator.scrub_ = function (block, code, opt_thisOnly) {
 };
 
 /* ---- assemblage : préambule (includes/globaux) + setup() + loop() ---- */
+/** Déduit le mode (OUTPUT/INPUT) de chaque pin digitale depuis les blocs du workspace.
+    Source de vérité partagée entre le C++ généré (setup pinMode) et le simulateur
+    (affichage dynamique bouton/LED par pin). */
+export function collectPinModes(ws) {
+  const pins = new Map();      // pin (string) -> 'OUTPUT' | 'INPUT'
+  for (const b of ws.getAllBlocks()) {
+    if (!b.type) continue;
+    if (b.type === 'arduino_digital_write') pins.set(b.getFieldValue('PIN'), 'OUTPUT');
+    else if (b.type === 'arduino_digital_read') pins.set(b.getFieldValue('PIN'), 'INPUT');
+    else if (b.type === 'arduino_led') pins.set('13', 'OUTPUT');
+  }
+  return pins;
+}
+
 export function collectPreamble(ws, gen) {
   const globals = [];          // ex: 'int valeur = 0;', 'Servo servo_9;'
   const setupLines = [];       // ex: 'pinMode(9, OUTPUT);', 'servo_9.attach(9);', 'Serial.begin(9600);'
-  const pins = new Map();      // pin -> mode OUTPUT/INPUT (digital)
+  const pins = collectPinModes(ws); // pin -> mode OUTPUT/INPUT (digital)
     const servos = new Set();    // pins servo (globaux + attach)
         const varTypes = new Map();  // nom -> 'number' | 'text' (déclaré ou déduit)
         let baud = null;

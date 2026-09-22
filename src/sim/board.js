@@ -83,7 +83,7 @@ export class VirtualBoard {
 
   /** digitalRead : lit l'état du bouton virtuel (LOW défaut = bouton non pressé). */
   digitalRead(pin) {
-    if (pin >= 2 && pin <= 3) return this.digitalIn[pin] || LOW; // boutons 2 & 3
+    if (pin >= 2 && pin <= 13) return this.digitalIn[pin] || LOW; // boutons virtuels
     return LOW;
   }
 
