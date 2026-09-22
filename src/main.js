@@ -10,7 +10,12 @@ import { VARS } from './vars.js';
 import { FUNCTIONS } from './functions.js';
 import { initSim } from './sim/sim.js';
 import { api } from './api.js';
+import { APP_VERSION } from './version.js';
 import './style.css';
+
+// Affiche la version de l'application dans le header (injectée au build par Vite).
+const appVersionEl = document.getElementById('appVersion');
+if (appVersionEl) appVersionEl.textContent = 'v' + APP_VERSION;
 
 defineArduinoBlocks();
 setLocale(getLang()); // Doit être posé AVANT Blockly.inject : sinon les labels ARIA

@@ -1,6 +1,6 @@
 {
   "name": "arduino-blocks",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Programmation Arduino par blocs pour enfants et débutants — Blockly 13.3, compile cloud, flash Web Serial, comptes cloud.",
   "license": "GPL-3.0",
   "repository": {

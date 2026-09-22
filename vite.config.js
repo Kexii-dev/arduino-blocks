@@ -1,6 +1,11 @@
 import { defineConfig } from 'vite';
+import { readFileSync } from 'node:fs';
+
+// Version du projet lue depuis package.json, injectée dans l'app (src/version.js).
+const APP_VERSION = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version;
 
 export default defineConfig({
+  define: { 'import.meta.env.APP_VERSION': JSON.stringify(APP_VERSION) },
   base: './',                       // build relatif : déployable sous /arduino/ comme le legacy
   server: {
     host: '0.0.0.0',
