@@ -25,7 +25,8 @@ const LED_L = { x: 630, y: 120 }; // LED_BUILTIN « L »
 // Zone de contrôle : 2 rangées sous la carte.
 const DIG_Y = 610;   // rangée pins digitales (boutons/LEDs dynamiques)
 const ANA_Y0 = 700;  // rangée analogiques + buzzer
-const VIEW_H = 780;
+const ANA_H = 170;   // hauteur rangée analogique (3 lignes A0-A5 + sliders PWM)
+const VIEW_H = 880;
 
 function el(tag, attrs, children) {
   const n = document.createElementNS('http://www.w3.org/2000/svg', tag);
@@ -101,17 +102,32 @@ export class BoardUI {
     svg.appendChild(ctrlG);
 
     // ---- Rangée 2 : analogiques + buzzer ----
-    svg.appendChild(el('rect', { x: 10, y: ANA_Y0, width: 800, height: 82, rx: 10, fill: '#16181a', stroke: '#2a2d30' }));
+    svg.appendChild(el('rect', { x: 10, y: ANA_Y0, width: 800, height: ANA_H, rx: 10, fill: '#16181a', stroke: '#2a2d30' }));
     svg.appendChild(el('text', { x: 20, y: ANA_Y0 + 16, fill: '#9fd8db', 'font-size': 10, 'font-family': 'monospace' }, ['ANALOG']));
+    // conteneur des sliders PWM (sorties read-only, pilotés par l'app)
+    const pwmG = el('g', { class: 'sim-pwm-ctrl' });
+    this._pwmG = pwmG;
+    svg.appendChild(pwmG);
 
-    // Sliders A0..A5
+    // Sliders A0..A5 — horizontaux, 2 par ligne (3 lignes)
+    // Chaque slider : piste horizontale + curseur qui glisse + label A0..A5 à gauche.
+    const SL_W = 250;          // longueur de piste
+    const SL_X1 = 70;          // départ piste slider 1
+    const SL_X2 = 420;         // départ piste slider 2
+    const SL_ROW = [22, 46, 70]; // décalages Y des 3 lignes
     for (let c = 0; c < 6; c++) {
-      const x = 90 + c * 42;
-      const trace = el('line', { x1: x, y1: ANA_Y0 + 30, x2: x, y2: ANA_Y0 + 56, stroke: '#3a8b91', 'stroke-width': 5, 'stroke-linecap': 'round' });
-      const knob = el('circle', { cx: x, cy: ANA_Y0 + 30, r: 6, fill: teal, stroke: '#dff6f7', 'stroke-width': 1.5, 'data-ch': c, class: 'sim-knob' });
-      const label = el('text', { x: x, y: ANA_Y0 + 74, fill: '#cfe', 'font-size': 8, 'font-family': 'monospace', 'text-anchor': 'middle', 'data-ch': c }, ['A' + c]);
-      this.sliders[c] = { trace, knob, label, x, minY: ANA_Y0 + 30, maxY: ANA_Y0 + 56, val: 0 };
-      svg.appendChild(trace); svg.appendChild(knob); svg.appendChild(label);
+      const row = Math.floor(c / 2);       // 0,1,2
+      const col = c % 2;                   // 0=gauche, 1=droite
+      const y = ANA_Y0 + SL_ROW[row];
+      const x1 = col === 0 ? SL_X1 : SL_X2;
+      const x2 = x1 + SL_W;
+      const trace = el('line', { x1: x1, y1: y, x2: x2, y2: y, stroke: '#2a2d30', 'stroke-width': 5, 'stroke-linecap': 'round' });
+      const fill = el('line', { x1: x1, y1: y, x2: x1, y2: y, stroke: teal, 'stroke-width': 5, 'stroke-linecap': 'round', class: 'sim-slider-fill' });
+      const knob = el('circle', { cx: x1, cy: y, r: 6, fill: teal, stroke: '#dff6f7', 'stroke-width': 1.5, 'data-ch': c, class: 'sim-knob' });
+      const label = el('text', { x: x1 - 12, y: y + 3, fill: '#cfe', 'font-size': 8, 'font-family': 'monospace', 'text-anchor': 'end', 'data-ch': c }, ['A' + c]);
+      const pct = el('text', { x: x2 + 14, y: y + 3, fill: '#9fd8db', 'font-size': 8, 'font-family': 'monospace', 'data-ch': c, class: 'sim-slider-pct' }, ['0%']);
+      this.sliders[c] = { trace, fill, knob, label, pct, x1, x2, y, val: 0 };
+      svg.appendChild(trace); svg.appendChild(fill); svg.appendChild(knob); svg.appendChild(label); svg.appendChild(pct);
     }
 
     // Buzzer (pin 11), à droite
@@ -188,6 +204,40 @@ export class BoardUI {
       lx += 68;
     }
     this._bindButtons();
+    this._renderPwmSliders();
+  }
+
+  /** Rend les sliders PWM (sorties analogWrite) — read-only, pilotés par l'app. */
+  _renderPwmSliders() {
+    const g = this._pwmG;
+    if (!g) return;
+    while (g.firstChild) g.removeChild(g.firstChild);
+    this.pwmSliders = {};
+    const pwmPins = [];
+    for (let p = 2; p <= 13; p++) {
+      const m = this.pinModes[p] || this.pinModes['' + p];
+      if (m === 'PWM') pwmPins.push(p);
+    }
+    if (!pwmPins.length) return;
+    // titre SORTIES PWM
+    g.appendChild(el('text', { x: 20, y: ANA_Y0 + 92, fill: '#e0a35c', 'font-size': 9, 'font-family': 'monospace' }, ['SORTIES PWM (analogWrite)']));
+    const SL_W = 250, SL_X1 = 70, SL_X2 = 420;
+    const rows = [116, 140, 164];
+    for (let i = 0; i < pwmPins.length; i++) {
+      const pin = pwmPins[i];
+      const row = Math.floor(i / 2);
+      const col = i % 2;
+      const y = ANA_Y0 + rows[row];
+      const x1 = col === 0 ? SL_X1 : SL_X2;
+      const x2 = x1 + SL_W;
+      const trace = el('line', { x1: x1, y1: y, x2: x2, y2: y, stroke: '#2a2d30', 'stroke-width': 5, 'stroke-linecap': 'round' });
+      const fill = el('line', { x1: x1, y1: y, x2: x1, y2: y, stroke: '#e0a35c', 'stroke-width': 5, 'stroke-linecap': 'round', class: 'sim-pwm-fill' });
+      const knob = el('circle', { cx: x1, cy: y, r: 6, fill: '#e0a35c', stroke: '#f5d9b0', 'stroke-width': 1.5, class: 'sim-pwm-knob' });
+      const label = el('text', { x: x1 - 12, y: y + 3, fill: '#e0a35c', 'font-size': 8, 'font-family': 'monospace', 'text-anchor': 'end' }, ['D' + pin]);
+      const pct = el('text', { x: x2 + 14, y: y + 3, fill: '#e0a35c', 'font-size': 8, 'font-family': 'monospace', class: 'sim-pwm-pct' }, ['0%']);
+      this.pwmSliders[pin] = { trace, fill, knob, label, pct, x1, x2, y, val: 0 };
+      g.appendChild(trace); g.appendChild(fill); g.appendChild(knob); g.appendChild(label); g.appendChild(pct);
+    }
   }
 
   /** Repaint un interrupteur selon son état ON/OFF (track teal/grau, curseur coulé). */
@@ -242,18 +292,20 @@ export class BoardUI {
 
   _moveSlider(ch, ev) {
     const ctm = this._svgEl.getScreenCTM ? this._svgEl.getScreenCTM().inverse() : null;
-    let y = 0;
-    if (ctm) { const p = this._svgEl.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY; y = p.matrixTransform(ctm).y; }
+    let x = 0;
+    if (ctm) { const p = this._svgEl.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY; x = p.matrixTransform(ctm).x; }
     const s = this.sliders[ch];
-    y = Math.max(s.minY, Math.min(s.maxY, y));
-    this._setSliderValue(ch, Math.round(((s.maxY - y) / (s.maxY - s.minY)) * 1023));
+    x = Math.max(s.x1, Math.min(s.x2, x));
+    this._setSliderValue(ch, Math.round(((x - s.x1) / (s.x2 - s.x1)) * 1023));
   }
 
   _setSliderValue(ch, val) {
     const s = this.sliders[ch];
     s.val = val;
-    const y = s.maxY - ((val / 1023) * (s.maxY - s.minY));
-    s.knob.setAttribute('cy', y);
+    const x = s.x1 + ((val / 1023) * (s.x2 - s.x1));
+    s.knob.setAttribute('cx', x);
+    s.fill.setAttribute('x2', x);
+    s.pct.textContent = Math.round((val / 1023) * 100) + '%';
     this.board.setAnalog(ch, val);
     if (this.hooks.setAnalog) this.hooks.setAnalog(ch, val);
   }
@@ -261,9 +313,10 @@ export class BoardUI {
   _renderAll() {
     for (let c = 0; c < 6; c++) {
       const s = this.sliders[c];
-      const y = s.maxY - ((s.val / 1023) * (s.maxY - s.minY));
-      s.knob.setAttribute('cy', y);
-      s.trace.setAttribute('y2', y);
+      const x = s.x1 + ((s.val / 1023) * (s.x2 - s.x1));
+      s.knob.setAttribute('cx', x);
+      s.fill.setAttribute('x2', x);
+      s.pct.textContent = Math.round((s.val / 1023) * 100) + '%';
     }
   }
 
@@ -287,22 +340,31 @@ export class BoardUI {
         pin.led.setAttribute('stroke', pinOn ? '#ffe08a' : '#777');
       }
       // LED nommée de la rangée de contrôle (si la pin est en sortie)
-            const ctrl = this.buttons[p.pin];
-            if (ctrl && this.pinModes[p.pin] === 'OUTPUT') {
-              const dot = ctrl.querySelector('.sim-dig-led-dot');
-              const halo = ctrl.querySelector('.sim-dig-led-halo');
-              const gloss = ctrl.querySelector('.sim-dig-led-gloss');
-              const on2 = p.value > 0;
-              if (dot) {
-                dot.setAttribute('fill', on2 ? '#ffcc4d' : '#2a2c30');
-                dot.setAttribute('stroke', on2 ? '#ffe08a' : '#555');
-              }
-              if (halo) {
-                halo.setAttribute('fill', on2 ? 'rgba(255,204,77,0.35)' : 'none');
-                halo.setAttribute('stroke', on2 ? 'rgba(255,204,77,0.6)' : 'none');
-              }
-              if (gloss) gloss.setAttribute('opacity', on2 ? 0.85 : 0.5);
-            }
+      const ctrl = this.buttons[p.pin];
+      if (ctrl && this.pinModes[p.pin] === 'OUTPUT') {
+        const dot = ctrl.querySelector('.sim-dig-led-dot');
+        const halo = ctrl.querySelector('.sim-dig-led-halo');
+        const gloss = ctrl.querySelector('.sim-dig-led-gloss');
+        const on2 = p.value > 0;
+        if (dot) {
+          dot.setAttribute('fill', on2 ? '#ffcc4d' : '#2a2c30');
+          dot.setAttribute('stroke', on2 ? '#ffe08a' : '#555');
+        }
+        if (halo) {
+          halo.setAttribute('fill', on2 ? 'rgba(255,204,77,0.35)' : 'none');
+          halo.setAttribute('stroke', on2 ? 'rgba(255,204,77,0.6)' : 'none');
+        }
+        if (gloss) gloss.setAttribute('opacity', on2 ? 0.85 : 0.5);
+      }
+      // Slider PWM (sortie analogWrite) : l'app fait bouger le curseur
+      if (this.pwmSliders && this.pwmSliders[p.pin]) {
+        const s = this.pwmSliders[p.pin];
+        s.val = p.value; // 0..255
+        const x = s.x1 + ((p.value / 255) * (s.x2 - s.x1));
+        s.knob.setAttribute('cx', x);
+        s.fill.setAttribute('x2', x);
+        s.pct.textContent = Math.round((p.value / 255) * 100) + '%';
+      }
     } else if (kind === 'analog') {
       if (this.sliders['' + p.channel]) this._renderAll();
     } else if (kind === 'tone') {

@@ -190,6 +190,7 @@ export function collectPinModes(ws) {
     if (b.type === 'arduino_digital_write') pins.set(b.getFieldValue('PIN'), 'OUTPUT');
     else if (b.type === 'arduino_digital_read') pins.set(b.getFieldValue('PIN'), 'INPUT');
     else if (b.type === 'arduino_led') pins.set('13', 'OUTPUT');
+    else if (b.type === 'arduino_analog_write') pins.set(b.getFieldValue('PIN'), 'PWM');
   }
   return pins;
 }
@@ -229,7 +230,7 @@ export function collectPreamble(ws, gen) {
             setupLines.push('servo_' + pin + '.attach(' + pin + ');');
           }
         }
-        for (const [pin, mode] of pins) setupLines.push('pinMode(' + pin + ', ' + mode + ');');
+        for (const [pin, mode] of pins) setupLines.push('pinMode(' + pin + ', ' + (mode === 'PWM' ? 'OUTPUT' : mode) + ');');
         for (const [v, t] of varTypes) globals.push(t === 'text' ? 'String ' + v + ' = "";' : 'int ' + v + ' = 0;');
         if (baud != null) setupLines.unshift('Serial.begin(' + baud + ');');
 
