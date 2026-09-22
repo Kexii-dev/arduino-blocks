@@ -18,6 +18,10 @@ Application web open source de **programmation Arduino par blocs**, pensée pour
 - 🖥️ **Popup « hacker » pédagogique** : en cas d'erreur de compilation, chaque erreur C++ est traduite en explication claire pour débutants (en français).
 - 👤 **Comptes utilisateurs** (ados) : sessions cookie httpOnly, mots de passe scrypt côté serveur, jauge **zxcvbn**, vérification de fuites **Have I Been Pwned en k-anonymité** (le mot de passe ne quitte jamais le navigateur), générateur de phrases diceware.
 - 💾 **Programmes sauvegardés** dans le cloud (SQLite côté backend), liés au compte.
+- 💾 **Workspace auto-sauvegardé** en `localStorage` : ton programme est restauré au rechargement (bouton 💡 Exemple pour repartir de la démo).
+- 🏠 **Écran d'accueil** au premier lancement : Nouveau programme / Exemple / Mes programmes.
+- 📄 **Panneau C++ repliable** (bouton `</>`) — fermé par défaut sur tablette pour ne pas masquer les blocs.
+- 🧩 **Dropdown fonctions dynamique** : l'appel liste les fonctions réellement définies (renommer une fonction met à jour l'appel).
 - 🌍 **FR / EN** (français par défaut).
 
 ---
