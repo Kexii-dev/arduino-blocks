@@ -55,8 +55,26 @@ Front **statique** (Vite → build `dist/`), servi par nginx. Aucun framework UI
 | `compile.js` | Boutons Compiler / Téléverser, flash Web Serial (avrgirl) |
 | `hack.js` | Popup « hacker » : parse + explique les erreurs de compilation |
 | `account.js` | Comptes : modale login/register (zxcvbn + HIBP), CRUD programmes |
+| `examples.js` | Catalogue d'exemples (6 thèmes × 10 exemples) + builders de blocs + fiches explicatives |
 
 `public/lib/` : libs vendues en local (pas de CDN) : `zxcvbn.js`, `passwords_words.js` (diceware EFF), `avrgirl-arduino.global.js`.
+
+## Fenêtre Exemples (`examples.js` + `main.js`)
+
+Le bouton **💡 Exemple** (header) n'affiche plus de `confirm` : il ouvre une **fenêtre d'exemples** (`#exPanel`, même style que le panneau Code) pour choisir un programme pré-construit.
+
+- **Catalogue** : `EXAMPLES` = tableau de thèmes, chacun `{ theme, items: [{id, title, desc, matos, expl, build(ws)}] }`.
+  - `build(ws)` construit les blocs dans le workspace (via helpers `mk`/`chain`/`renderAll`).
+  - `desc`/`matos`/`expl` = fiche explicative affichée au clic sur un exemple.
+- **UI** : `main.js` — `openExPanel`/`closeExPanel`, `renderExThemes` (pills de thèmes), `renderExList` (exemples du thème), `renderExDetail` (fiche + bouton « Charger cet exemple »). Le chargement fait `ws.clear()` + `build(ws)` + `refreshCode()` + `scheduleSave()`.
+- **Pièges** (voir aussi skill) :
+  - `setFieldValue(valeur, NOM)` — le **nom du champ est le 2e argument** (ex. `setFieldValue('9','PIN')`, `setFieldValue(1000,'MS')`).
+  - `controls_repeat` a un bug de message → utiliser `controls_whileUntil` (input `BOOL` + field `MODE`).
+  - Les dropdowns dynamiques (variables/fonctions) exigent `declareVar`/`declareFunction` AVANT de créer les blocs set/get/change/call.
+
+## Couleur LED simulateur (`board-ui.js`)
+
+Clic droit (contextmenu) sur une **LED de sortie** (`.sim-dig-led`) → menu `#simLedColorMenu` avec 8 pastilles de couleur. Le choix est stocké dans `this.ledColors[pin]` et appliqué par `_repaintCtrlLed` (dôme + halo + reflet) ; `_onModel` utilise `this.ledColors[pin] || '#ffcc4d'` pour peindre la LED quand elle s'allume. `_rgba(hex,a)` convertit `#rrggbb` → `rgba(...)`. Les LEDs témoins de la carte (LED_BUILTIN, rangée) restent jaunes.
 
 ## Générateur C++ (`generator.js`)
 
@@ -131,6 +149,11 @@ FQBN fixe : `arduino:avr:uno`.
 | `sim-virtual-test.mjs` (9) | moteur virtuel : génération JS + exécution blink |
 | `sim-pinmodes-test.mjs` (16) | mapping INPUT/OUTPUT (`collectPinModes`) + lecture pin arbitraire |
 | `sim-dynamic-pins-test.mjs` | navigateur réel : bouton D2 + LED D4 selon le mode |
+| `ex-build-test.mjs` (10) | chaque exemple construit ses blocs (headless) |
+| `ex-gen-test.mjs` (10) | chaque exemple génère un C++ valide (setup + loop) |
+| `ex-all-test.mjs` | navigateur réel : fenêtre exemples, thèmes, chargement de chaque exemple |
+| `ex-panel-test.mjs` | navigateur réel : ouverture du panneau, fiche, chargement |
+| `sim-ledcolor-test.mjs` | navigateur réel : clic droit LED → menu couleur → choix appliqué |
 | `diag*.mjs` | harnais navigateur playwright-core (rendu réel, console, screenshots) |
 
 Pattern portable Node : `const Blockly = BlocklyNS.Generator ? BlocklyNS : (BlocklyNS.default || BlocklyNS);` (sous Node, `blockly/core` résout en CJS via `.default`). Workspace headless : `new Blockly.Workspace()` — **pas jsdom**.

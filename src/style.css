@@ -165,6 +165,35 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 #simRun { background: #00878f; }
 #simStop { background: #8f2d2d; }
 
+/* ---- Fenêtre Exemples (choix par thème + fiche explicative) ---- */
+.ex-panel { position: fixed; right: 12px; top: 12px; z-index: 9500; width: 420px; max-width: 92vw;
+            max-height: 86vh; background: #202224; border: 1px solid #3c3c3c; border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0,0,0,.5); overflow: hidden; display: flex; flex-direction: column; }
+.ex-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+          padding: 8px 10px; background: #202224; border-bottom: 1px solid #333; }
+.ex-title { color: #9fd8db; font-weight: 700; font-size: 14px; }
+.ex-actions { display: flex; gap: 6px; }
+.ex-close { background: #2a2c30; color: #d4d4d4; border: 1px solid #3c3c3c; border-radius: 6px;
+            width: 30px; height: 30px; cursor: pointer; font-size: 13px; line-height: 1; }
+.ex-close:hover { background: #3a3c40; }
+.ex-body { display: flex; flex-direction: column; gap: 8px; padding: 10px; overflow-y: auto; flex: 1; }
+.ex-themes { display: flex; flex-wrap: wrap; gap: 6px; }
+.ex-theme { background: #2a2c30; color: #d4d4d4; border: 1px solid #3c3c3c; border-radius: 16px;
+            padding: 6px 12px; font-size: 13px; cursor: pointer; }
+.ex-theme:hover, .ex-theme.on { border-color: #00979D; color: #a5f0f4; }
+.ex-list { display: flex; flex-direction: column; gap: 6px; }
+.ex-item { background: #252526; color: #e8e8e8; border: 1px solid #3c3c3c; border-radius: 8px;
+           padding: 10px 12px; font-size: 14px; cursor: pointer; text-align: left; }
+.ex-item:hover { border-color: #00979D; color: #a5f0f4; }
+.ex-detail { background: #1a1c1e; border: 1px solid #00979D; border-radius: 10px; padding: 12px; }
+.ex-detail h3 { margin: 0 0 6px; color: #a5f0f4; font-size: 15px; }
+.ex-detail p { margin: 0 0 10px; color: #c8c8c8; font-size: 13px; line-height: 1.5; }
+.ex-detail .ex-desc { color: #9fd8db; font-size: 12px; margin-bottom: 10px; }
+.ex-load { background: #00878f; color: #fff; border: none; border-radius: 8px; padding: 10px 14px;
+           font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; }
+.ex-load:hover { background: #00979D; }
+.ex-empty { color: #888; font-size: 13px; text-align: center; padding: 20px 0; }
+
 /* ---- responsive tablette / PC ---- */
 @media (pointer: coarse) {
   .pal-btn, .tbtn, .acct-btn { min-height: 44px; font-size: 15px; }

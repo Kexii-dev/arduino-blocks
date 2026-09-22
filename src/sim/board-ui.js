@@ -45,9 +45,83 @@ export class BoardUI {
     this.serialEl = null;
     this.buzzerEl = null;
     this.pinModes = {}; // pin -> 'INPUT' | 'OUTPUT' (défini par setPinModes)
-    // abonnement au modèle
-    this.board.onChange = (kind, p) => this._onModel(kind, p);
-  }
+        this.ledColors = {}; // pin -> couleur de la LED de sortie (choisie par clic droit)
+        // abonnement au modèle
+        this.board.onChange = (kind, p) => this._onModel(kind, p);
+      }
+
+      /** Ouvre un menu contextuel de choix de couleur pour une LED de sortie. */
+      _openLedColorMenu(pin, ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const colors = ['#ffcc4d', '#ff4d4d', '#4dff4d', '#4d9dff', '#ff8c00', '#ff4dff', '#ffffff', '#00e5ff'];
+        const names = ['Jaune', 'Rouge', 'Vert', 'Bleu', 'Orange', 'Rose', 'Blanc', 'Cyan'];
+        // retire un menu déjà ouvert
+        const old = document.getElementById('simLedColorMenu');
+        if (old) old.remove();
+        const menu = document.createElement('div');
+        menu.id = 'simLedColorMenu';
+        menu.style.cssText = 'position:fixed;z-index:20000;background:#202224;border:1px solid #3c3c3c;' +
+          'border-radius:10px;padding:8px;box-shadow:0 8px 30px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:4px;';
+        const title = document.createElement('div');
+        title.textContent = 'Couleur LED D' + pin;
+        title.style.cssText = 'color:#9fd8db;font-size:12px;font-weight:700;padding:2px 4px 6px;';
+        menu.appendChild(title);
+        const grid = document.createElement('div');
+        grid.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:6px;';
+        colors.forEach((c, i) => {
+          const sw = document.createElement('div');
+          sw.style.cssText = 'width:34px;height:34px;border-radius:50%;background:' + c + ';cursor:pointer;' +
+            'border:2px solid ' + (this.ledColors[pin] === c ? '#fff' : '#3c3c3c') + ';';
+          sw.title = names[i];
+          sw.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.ledColors[pin] = c;
+            menu.remove();
+            this._repaintCtrlLed(pin);
+          });
+          grid.appendChild(sw);
+        });
+        menu.appendChild(grid);
+        // positionne près du clic, dans les limites de l'écran
+        const mw = 4 * 34 + 5 * 6 + 16;
+        const mh = 8 + 24 + 34 + 8;
+        let x = ev.clientX, y = ev.clientY;
+        if (x + mw > window.innerWidth) x = window.innerWidth - mw - 8;
+        if (y + mh > window.innerHeight) y = window.innerHeight - mh - 8;
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+        document.body.appendChild(menu);
+        // ferme au clic ailleurs
+        const close = (e) => { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('pointerdown', close); } };
+        setTimeout(() => document.addEventListener('pointerdown', close), 0);
+      }
+
+      /** Repaint la LED de contrôle d'une pin avec sa couleur choisie (ou défaut). */
+      _repaintCtrlLed(pin) {
+        const ctrl = this.buttons[pin];
+        if (!ctrl) return;
+        const dot = ctrl.querySelector('.sim-dig-led-dot');
+        const halo = ctrl.querySelector('.sim-dig-led-halo');
+        const gloss = ctrl.querySelector('.sim-dig-led-gloss');
+        const on2 = this._ledOn[pin];
+        const color = this.ledColors[pin] || '#ffcc4d';
+        if (dot) {
+          dot.setAttribute('fill', on2 ? color : '#2a2c30');
+          dot.setAttribute('stroke', on2 ? '#ffe08a' : '#555');
+        }
+        if (halo) {
+          halo.setAttribute('fill', on2 ? this._rgba(color, 0.35) : 'none');
+          halo.setAttribute('stroke', on2 ? this._rgba(color, 0.6) : 'none');
+        }
+        if (gloss) gloss.setAttribute('opacity', on2 ? 0.85 : 0.5);
+      }
+
+      /** Convertit #rrggbb en rgba(r,g,b,a). */
+      _rgba(hex, a) {
+        const n = parseInt(hex.slice(1), 16);
+        return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+      }
 
   /** Définit le mode (INPUT/OUTPUT) de chaque pin digitale, puis re-rend la zone de contrôle. */
   setPinModes(map) {
@@ -272,6 +346,10 @@ export class BoardUI {
         this.board.setButton(+pin, val);
         if (this.hooks.setButton) this.hooks.setButton(+pin, val);
       });
+      // Clic droit sur une LED de sortie -> menu de choix de couleur
+      if (g.classList && g.classList.contains('sim-dig-led')) {
+        g.addEventListener('contextmenu', (ev) => this._openLedColorMenu(+pin, ev));
+      }
     }
   }
 
@@ -346,13 +424,16 @@ export class BoardUI {
         const halo = ctrl.querySelector('.sim-dig-led-halo');
         const gloss = ctrl.querySelector('.sim-dig-led-gloss');
         const on2 = p.value > 0;
+        this._ledOn = this._ledOn || {};
+        this._ledOn[p.pin] = on2;
+        const color = this.ledColors[p.pin] || '#ffcc4d';
         if (dot) {
-          dot.setAttribute('fill', on2 ? '#ffcc4d' : '#2a2c30');
+          dot.setAttribute('fill', on2 ? color : '#2a2c30');
           dot.setAttribute('stroke', on2 ? '#ffe08a' : '#555');
         }
         if (halo) {
-          halo.setAttribute('fill', on2 ? 'rgba(255,204,77,0.35)' : 'none');
-          halo.setAttribute('stroke', on2 ? 'rgba(255,204,77,0.6)' : 'none');
+          halo.setAttribute('fill', on2 ? this._rgba(color, 0.35) : 'none');
+          halo.setAttribute('stroke', on2 ? this._rgba(color, 0.6) : 'none');
         }
         if (gloss) gloss.setAttribute('opacity', on2 ? 0.85 : 0.5);
       }

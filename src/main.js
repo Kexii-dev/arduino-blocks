@@ -11,6 +11,7 @@ import { FUNCTIONS } from './functions.js';
 import { initSim } from './sim/sim.js';
 import { api } from './api.js';
 import { APP_VERSION } from './version.js';
+import { EXAMPLES } from './examples.js';
 import './style.css';
 
 // Affiche la version de l'application dans le header (injectée au build par Vite).
@@ -277,12 +278,72 @@ if (wProg) wProg.addEventListener('click', () => {
   if (b) b.click();
 });
 
-/* ---------- Bouton Exemple (header) ---------- */
+/* ---------- Fenêtre Exemples (choix par thème + fiche explicative) ---------- */
+const exPanel = document.getElementById('exPanel');
+const exThemes = document.getElementById('exThemes');
+const exList = document.getElementById('exList');
+const exDetail = document.getElementById('exDetail');
+let exTheme = EXAMPLES[0] ? EXAMPLES[0].theme : null;
+let exSelected = null;
+
+function openExPanel() {
+  if (!exPanel) return;
+  exPanel.style.display = 'flex';
+  renderExThemes();
+  renderExList();
+}
+function closeExPanel() {
+  if (exPanel) exPanel.style.display = 'none';
+}
+function renderExThemes() {
+  if (!exThemes) return;
+  exThemes.innerHTML = EXAMPLES.map((g) =>
+    `<button class="ex-theme${g.theme === exTheme ? ' on' : ''}" data-theme="${g.theme}">${g.theme}</button>`
+  ).join('');
+  exThemes.querySelectorAll('.ex-theme').forEach((btn) => {
+    btn.addEventListener('click', () => { exTheme = btn.dataset.theme; exSelected = null; renderExThemes(); renderExList(); renderExDetail(); });
+  });
+}
+function renderExList() {
+  if (!exList) return;
+  const group = EXAMPLES.find((g) => g.theme === exTheme);
+  if (!group) { exList.innerHTML = '<div class="ex-empty">Aucun exemple.</div>'; return; }
+  exList.innerHTML = group.items.map((it) =>
+    `<button class="ex-item" data-id="${it.id}">${it.title}</button>`
+  ).join('');
+  exList.querySelectorAll('.ex-item').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      exSelected = group.items.find((i) => i.id === btn.dataset.id);
+      renderExDetail();
+    });
+  });
+}
+function renderExDetail() {
+  if (!exDetail) return;
+  if (!exSelected) { exDetail.innerHTML = ''; return; }
+  exDetail.innerHTML = `
+    <h3>${exSelected.title}</h3>
+    <p>${exSelected.desc}</p>
+    <div class="ex-desc">🧰 Matériel : ${exSelected.matos}</div>
+    <p>${exSelected.expl}</p>
+    <button class="ex-load" id="exLoadBtn" type="button">Charger cet exemple</button>`;
+  const loadBtn = document.getElementById('exLoadBtn');
+  if (loadBtn) loadBtn.addEventListener('click', () => {
+    ws.clear();
+    exSelected.build(ws);
+    refreshCode();
+    scheduleSave();
+    closeExPanel();
+    hideWelcome();
+    setStatus('✅ Exemple chargé : ' + exSelected.title);
+  });
+}
+
+/* ---------- Bouton Exemple (header) : ouvre la fenêtre au lieu du confirm ---------- */
 const exBtn = document.getElementById('exBtn');
-if (exBtn) exBtn.addEventListener('click', () => {
-  if (!confirm(t('clearConfirm'))) return;
-  loadExample();
-});
+if (exBtn) exBtn.addEventListener('click', openExPanel);
+const exCloseBtn = document.getElementById('exCloseBtn');
+if (exCloseBtn) exCloseBtn.addEventListener('click', closeExPanel);
 
 /* ---------- Panneau C++ repliable ---------- */
 const codePanel = document.getElementById('codePanel');

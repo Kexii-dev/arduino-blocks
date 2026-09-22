@@ -4,6 +4,10 @@ Toutes les modifications notables du projet. Le format suit [Keep a Changelog](h
 
 ## [Unreleased]
 
+### Ajouté
+- **Fenêtre Exemples** (bouton 💡) : remplace le `confirm` par un panneau de choix — 6 thèmes × 10 exemples pré-construits (LED, Capteurs, Contrôle, Sons & servo, Série, Fonctions), chacun avec une fiche explicative (description, matériel, explication) et un bouton « Charger cet exemple ».
+- **Couleur des LEDs du simulateur** : clic droit sur une LED de sortie → menu de 8 couleurs (Jaune, Rouge, Vert, Bleu, Orange, Rose, Blanc, Cyan). Le choix est mémorisé par pin et appliqué quand la LED s'allume.
+
 ## [0.3.0] - 2026-09-22
 
 ### Ajouté

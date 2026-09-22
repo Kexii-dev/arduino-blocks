@@ -27,13 +27,28 @@
   </header>
 
   <main id="container">
-    <div id="blocklyDiv"></div>
-    <aside id="codePanel">
-      <h2 id="codeTitle">Code C++ généré (Arduino Uno)</h2>
-      <pre id="code"></pre>
-      <div class="hint" id="hint"></div>
+      <div id="blocklyDiv"></div>
+      <aside id="codePanel">
+        <h2 id="codeTitle">Code C++ généré (Arduino Uno)</h2>
+        <pre id="code"></pre>
+        <div class="hint" id="hint"></div>
+      </aside>
+    </main>
+
+    <!-- Fenêtre Exemples (choix par thème + fiche explicative) -->
+    <aside id="exPanel" class="ex-panel" style="display:none">
+      <div class="ex-bar">
+        <span class="ex-title">💡 Exemples</span>
+        <span class="ex-actions">
+          <button class="ex-close" id="exCloseBtn" type="button" title="Fermer">✕</button>
+        </span>
+      </div>
+      <div class="ex-body">
+        <div class="ex-themes" id="exThemes"></div>
+        <div class="ex-list" id="exList"></div>
+        <div class="ex-detail" id="exDetail"></div>
+      </div>
     </aside>
-  </main>
 
   <!-- Fenêtre simulation (2 moteurs : virtuelle + AVR8js réelle) -->
   <aside id="simPanelWrap" style="display:none">
