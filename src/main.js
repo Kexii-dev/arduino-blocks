@@ -309,10 +309,17 @@ document.getElementById('clearBtn').addEventListener('click', () => {
 /* ---------- Compiler / Téléverser ---------- */
 initCompile(getSource);
 
-/* ---------- Simulation (virtuelle + AVR8js réelle) ---------- */
+/* ---------- Simulation (virtuelle + AVR8js réelle) : fenêtre flottante ---------- */
 const simPanelWrap = document.getElementById('simPanelWrap');
 const simBtn = document.getElementById('simBtn');
+const simWinBar = document.getElementById('simWinBar');
+const simMaxBtn = document.getElementById('simMaxBtn');
+const simCloseBtn = document.getElementById('simCloseBtn');
+const simResize = document.getElementById('simResize');
 let simOpen = false;
+let simMaximized = false;
+let simDrag = null;
+
 const sim = initSim({
   containerId: 'simPanel',
   getWorkspace: () => ws,
@@ -323,13 +330,83 @@ const sim = initSim({
     catch (e) { return e.json || { ok: false, error: (e && e.message) || String(e) }; }
   },
 });
-function toggleSim() {
-  simOpen = !simOpen;
-  if (simPanelWrap) simPanelWrap.style.display = simOpen ? 'block' : 'none';
-  if (simBtn) simBtn.classList.toggle('hl', simOpen);
-  if (!simOpen) sim.stop();
+
+function openSim() {
+  simOpen = true;
+  simPanelWrap.style.display = 'block';
+  simBtn.classList.add('hl');
+  // position par défaut : à droite, pas plein écran
+  if (!simPanelWrap.dataset.placed) {
+    simPanelWrap.dataset.placed = '1';
+    simPanelWrap.style.left = 'calc(100vw - 576px)';
+    simPanelWrap.style.top = '150px';
+    simPanelWrap.style.right = 'auto';
+    simPanelWrap.style.bottom = 'auto';
+    simPanelWrap.style.width = 'min(560px, 92vw)';
+    simPanelWrap.style.height = 'min(560px, 80vh)';
+  }
 }
+function closeSim() {
+  simOpen = false;
+  simPanelWrap.style.display = 'none';
+  simBtn.classList.remove('hl');
+  sim.stop();
+}
+function toggleSim() { simOpen ? closeSim() : openSim(); }
+
+function setMaximized(on) {
+  simMaximized = on;
+  simPanelWrap.classList.toggle('sim-max', on);
+  simMaxBtn.textContent = on ? '🗗' : '⛶';
+  simMaxBtn.title = on ? 'Réduire' : 'Agrandir';
+}
+
 if (simBtn) simBtn.addEventListener('click', toggleSim);
+if (simCloseBtn) simCloseBtn.addEventListener('click', closeSim);
+if (simMaxBtn) simMaxBtn.addEventListener('click', () => setMaximized(!simMaximized));
+
+// Déplacement par la barre de titre (souris + tactile)
+if (simWinBar) {
+  simWinBar.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.sim-win-btn')) return; // ne pas déplacer quand on clique un bouton
+    if (simMaximized) return;
+    simDrag = { x: e.clientX - simPanelWrap.offsetLeft, y: e.clientY - simPanelWrap.offsetTop };
+    simWinBar.setPointerCapture(e.pointerId);
+  });
+  simWinBar.addEventListener('pointermove', (e) => {
+    if (!simDrag) return;
+    let x = e.clientX - simDrag.x;
+    let y = e.clientY - simDrag.y;
+    // garder la fenêtre dans le viewport
+    x = Math.max(0, Math.min(x, window.innerWidth - 60));
+    y = Math.max(0, Math.min(y, window.innerHeight - 40));
+    simPanelWrap.style.left = x + 'px';
+    simPanelWrap.style.top = y + 'px';
+    simPanelWrap.style.right = 'auto';
+    simPanelWrap.style.bottom = 'auto';
+  });
+  simWinBar.addEventListener('pointerup', () => { simDrag = null; });
+  simWinBar.addEventListener('pointercancel', () => { simDrag = null; });
+}
+
+// Redimensionnement par la poignée bas-droite
+if (simResize) {
+  simResize.addEventListener('pointerdown', (e) => {
+    if (simMaximized) return;
+    e.preventDefault();
+    simDrag = { x: e.clientX, y: e.clientY, w: simPanelWrap.offsetWidth, h: simPanelWrap.offsetHeight, resize: true };
+    simResize.setPointerCapture(e.pointerId);
+  });
+  simResize.addEventListener('pointermove', (e) => {
+    if (!simDrag || !simDrag.resize) return;
+    simPanelWrap.style.width = Math.max(320, simDrag.w + (e.clientX - simDrag.x)) + 'px';
+    simPanelWrap.style.height = Math.max(240, simDrag.h + (e.clientY - simDrag.y)) + 'px';
+    simPanelWrap.style.right = 'auto';
+    simPanelWrap.style.bottom = 'auto';
+  });
+  simResize.addEventListener('pointerup', () => { simDrag = null; });
+  simResize.addEventListener('pointercancel', () => { simDrag = null; });
+}
 
 /* ---------- Comptes + programmes (sérialisation JSON) ---------- */
 initAccount({

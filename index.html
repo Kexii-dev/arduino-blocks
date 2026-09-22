@@ -34,9 +34,17 @@
     </aside>
   </main>
 
-  <!-- Panneau simulation (2 moteurs : virtuelle + AVR8js réelle) -->
+  <!-- Fenêtre simulation (2 moteurs : virtuelle + AVR8js réelle) -->
   <aside id="simPanelWrap" style="display:none">
+    <div class="sim-win-bar" id="simWinBar">
+      <span class="sim-win-title">🔌 Simulation</span>
+      <span class="sim-win-actions">
+        <button class="sim-win-btn" id="simMaxBtn" type="button" title="Agrandir / réduire">⛶</button>
+        <button class="sim-win-btn" id="simCloseBtn" type="button" title="Fermer">✕</button>
+      </span>
+    </div>
     <div id="simPanel"></div>
+    <div class="sim-resize" id="simResize"></div>
   </aside>
 
   <!-- libs vendues (pas de CDN) -->

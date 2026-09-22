@@ -125,10 +125,28 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 #compileStatus.err { background: #3a0d0d; border-color: #ff6b6b; color: #ffd7d7; }
 #compileStatus.warn { background: #3a2a0d; border-color: #ffb55c; color: #ffe9c9; }
 
-/* ---- Panneau simulation (virtuelle + AVR8js) ---- */
-#simPanelWrap { position: fixed; inset: 0 auto 0 0; width: min(560px, 94vw); background: #181a1c;
-                border-right: 1px solid #333; z-index: 9500; overflow-y: auto; padding: 10px; }
-#simPanel { display: flex; flex-direction: column; gap: 8px; }
+/* ---- Fenêtre simulation (virtuelle + AVR8js) : flottante, déplaçable, redimensionnable ---- */
+#simPanelWrap { position: fixed; z-index: 9500; background: #181a1c; border: 1px solid #333;
+                border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.5); overflow: hidden;
+                display: flex; flex-direction: column; min-width: 320px; min-height: 240px;
+                max-width: none; max-height: none; }
+#simPanelWrap.sim-max { inset: 0 !important; width: 100vw !important; height: 100vh !important;
+                        max-width: none !important; max-height: none !important;
+                        border-radius: 0; border: 0; }
+.sim-win-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+               padding: 8px 10px; background: #202224; border-bottom: 1px solid #333;
+               cursor: grab; user-select: none; touch-action: none; }
+.sim-win-bar:active { cursor: grabbing; }
+.sim-win-title { color: #9fd8db; font-weight: 700; font-size: 14px; }
+.sim-win-actions { display: flex; gap: 6px; }
+.sim-win-btn { background: #2a2c30; color: #d4d4d4; border: 1px solid #3c3c3c; border-radius: 6px;
+               width: 30px; height: 30px; cursor: pointer; font-size: 13px; line-height: 1; }
+.sim-win-btn:hover { background: #3a3c40; }
+#simPanel { display: flex; flex-direction: column; gap: 8px; padding: 10px; overflow-y: auto; flex: 1; }
+.sim-resize { position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; cursor: nwse-resize;
+              touch-action: none; }
+.sim-resize::after { content: ''; position: absolute; right: 3px; bottom: 3px; width: 8px; height: 8px;
+                     border-right: 2px solid #555; border-bottom: 2px solid #555; }
 .sim-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .sim-title { color: #9fd8db; font-weight: 700; font-size: 14px; }
 .sim-mode { background: #252526; color: #d4d4d4; border: 1px solid #3c3c3c; border-radius: 6px; padding: 6px 8px; font-size: 12px; }
