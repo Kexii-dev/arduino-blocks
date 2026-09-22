@@ -1,0 +1,21 @@
+import { createRequire } from 'module';
+const require = createRequire('/root/arduino-blocks/');
+const { chromium } = require('playwright-core');
+const browser = await chromium.launch({ executablePath: '/root/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome', headless: true });
+const page = await browser.newPage({ viewport: { width: 1280, height: 920 } });
+await page.goto('http://127.0.0.1:5173/', { waitUntil: 'networkidle' });
+await page.waitForTimeout(500);
+const raw = "sketch/sketch.ino:12:5: error: 'compteur' was not declared in this scope\n   compteur = 5;\n   ^~~~~~~~~\nsketch/sketch.ino:15:10: error: cannot convert 'String' to 'int' in assignment";
+await page.evaluate(async (r) => { const m = await import('/src/hack.js'); m.showHackPopup(r); }, raw);
+// attendre la fin complète de l'animation
+await page.waitForTimeout(9000);
+const txt = await page.evaluate(() => (document.getElementById('hackBody')||{}).textContent || '');
+console.log('=== contenu final ===');
+console.log(txt);
+console.log('=== checks ===');
+console.log('explication variable:', txt.includes('créer la variable'));
+console.log('explication String/int:', txt.includes('TEXTE et un NOMBRE'));
+console.log('erreur brute 1:', txt.includes('was not declared in this scope'));
+console.log('erreur brute 2:', txt.includes('cannot convert'));
+console.log('numérotation erreurs:', txt.includes('ERREUR #1') && txt.includes('ERREUR #2'));
+await browser.close();

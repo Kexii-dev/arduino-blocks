@@ -123,6 +123,9 @@ function addBlock(type) {
   block.render();
   block.moveBy(Math.round(40 + Math.random() * 40), Math.round(40 + Math.random() * 40));
   ws.centerOnBlock(block);
+  // ws.newBlock ne déclenche PAS d'événement change -> resync manuel du registre
+  syncVars();
+  if (type === 'arduino_var_create') rerenderAll(); // rafraîchir les dropdowns dynamiques
 }
 
 let activeCat = 'action';

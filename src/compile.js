@@ -1,5 +1,6 @@
 import { api } from './api.js';
 import { t } from './i18n.js';
+import { showHackPopup } from './hack.js';
 
 /* Compiler + Téléverser (Web Serial) — portage du contrat prod exact :
    POST /api/compile -> {ok, hex_base64, hex_bytes, size:{flash,flash_pct,ram,ram_pct}}
@@ -47,13 +48,22 @@ export function initCompile(getSource) {
           '\n' + res.hex_bytes + ' o de .hex', true);
         dl.style.display = 'block';
       } else {
-        lastResult = null;
-        setStatus(t('compileErr') + (res.error || 'inconnue'), false);
-      }
-    } catch (e) {
-      if (e.status === 429) { setStatus(t('compile429'), false); return; }
-      setStatus(t('compileNet') + (e.message || e), false);
-    }
+                    lastResult = null;
+                    setStatus(t('compileErr') + (res.error || 'inconnue'), false);
+                    showHackPopup(res.error || 'Erreur inconnue');
+                  }
+          } catch (e) {
+            if (e.status === 429) { setStatus(t('compile429'), false); return; }
+            // api() lève une exception quand ok:false (contrat partagé avec auth) :
+            // pour /compile c'est une ERREUR DE COMPILATION normale -> popup hacker.
+            if (e.json && e.json.ok === false) {
+              lastResult = null;
+              setStatus(t('compileErr') + (e.json.error || 'inconnue'), false);
+              showHackPopup(e.json.error || 'Erreur inconnue');
+              return;
+            }
+            setStatus(t('compileNet') + (e.message || e), false);
+          }
   }
 
   function hexToArrayBuffer(b64) {
