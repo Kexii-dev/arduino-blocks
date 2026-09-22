@@ -76,12 +76,22 @@ const CATEGORIES = [
     { t: 'arduino_var_get', l: '👁 Lire variable' },
   ]},
   { id: 'serie', label: '📡 Série', blocks: [
-    { t: 'arduino_serial_init', l: '🚀 Démarrer série' },
-    { t: 'arduino_serial_print', l: '💬 Envoyer ligne' },
-    { t: 'arduino_serial_read', l: '👂 Lire caractère' },
-    { t: 'arduino_serial_available', l: '📬 Données dispo ?' },
-  ]},
-];
+      { t: 'arduino_serial_init', l: '🚀 Démarrer série' },
+      { t: 'arduino_serial_print', l: '💬 Envoyer ligne' },
+      { t: 'arduino_serial_read', l: '👂 Lire caractère' },
+      { t: 'arduino_serial_available', l: '📬 Données dispo ?' },
+    ]},
+    { id: 'texte', label: '🔤 Textes', blocks: [
+      { t: 'arduino_text', l: '📝 Texte' },
+      { t: 'arduino_text_append', l: '➕ Ajouter texte' },
+      { t: 'arduino_text_length', l: '📏 Longueur' },
+      { t: 'arduino_text_equals', l: '⚖ Texte égal' },
+    ]},
+    { id: 'fonction', label: '🧩 Fonctions', blocks: [
+      { t: 'arduino_function', l: '📦 Définir fonction' },
+      { t: 'arduino_function_call', l: '📞 Appeler fonction' },
+    ]},
+  ];
 
 function addBlock(type) {
   const block = ws.newBlock(type);

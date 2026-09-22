@@ -80,6 +80,37 @@ arduinoGenerator.forBlock['arduino_serial_available'] = function () {
   return ['Serial.available()', arduinoGenerator.ORDER_ATOMIC];
 };
 
+/* ---- textes ---- */
+arduinoGenerator.forBlock['arduino_text'] = function (block) {
+  const t = block.getFieldValue('TEXT') || '';
+  return ['"' + t.replace(/"/g, '\\"') + '"', arduinoGenerator.ORDER_ATOMIC];
+};
+arduinoGenerator.forBlock['arduino_text_append'] = function (block, generator) {
+  const v = block.getFieldValue('VAR');
+  const text = generator.valueToCode(block, 'TEXT', arduinoGenerator.ORDER_NONE) || '""';
+  return v + ' += ' + text + ';\n';
+};
+arduinoGenerator.forBlock['arduino_text_length'] = function (block, generator) {
+  const text = generator.valueToCode(block, 'TEXT', arduinoGenerator.ORDER_NONE) || '""';
+  return [text + '.length()', arduinoGenerator.ORDER_ATOMIC];
+};
+arduinoGenerator.forBlock['arduino_text_equals'] = function (block, generator) {
+  const O = arduinoGenerator.ORDER_RELATIONAL;
+  const a = generator.valueToCode(block, 'A', O) || '""';
+  const b = generator.valueToCode(block, 'B', O) || '""';
+  return [a + ' == ' + b, O];
+};
+
+/* ---- fonctions ---- */
+arduinoGenerator.forBlock['arduino_function'] = function (block, generator) {
+  const name = block.getFieldValue('NAME') || 'maFonction';
+  const body = generator.statementToCode(block, 'BODY');
+  return 'void ' + name + '() {\n' + body + '}\n';
+};
+arduinoGenerator.forBlock['arduino_function_call'] = function (block) {
+  return block.getFieldValue('NAME') + '();\n';
+};
+
 /* ---- boucle tant que + maths de base ---- */
 arduinoGenerator.forBlock['controls_whileUntil'] = function (block, generator) {
   const cond = generator.valueToCode(block, 'BOOL', arduinoGenerator.ORDER_NONE) || 'false';
@@ -152,30 +183,33 @@ export function collectPreamble(ws, gen) {
   const globals = [];          // ex: 'int valeur = 0;', 'Servo servo_9;'
   const setupLines = [];       // ex: 'pinMode(9, OUTPUT);', 'servo_9.attach(9);', 'Serial.begin(9600);'
   const pins = new Map();      // pin -> mode OUTPUT/INPUT (digital)
-  const servos = new Set();    // pins servo (globaux + attach)
-  const vars = new Set();      // noms de variables utilisées
-  let baud = null;
+    const servos = new Set();    // pins servo (globaux + attach)
+    const vars = new Set();      // noms de variables utilisées
+    const textVars = new Set();  // noms de variables texte (String)
+    let baud = null;
 
-  for (const b of ws.getAllBlocks()) {
-    if (!b.type) continue;
-    if (b.type === 'arduino_digital_write') pins.set(b.getFieldValue('PIN'), 'OUTPUT');
-    else if (b.type === 'arduino_digital_read') pins.set(b.getFieldValue('PIN'), 'INPUT');
-    else if (b.type === 'arduino_servo') servos.add(b.getFieldValue('PIN'));
-    else if (b.type === 'arduino_var_set' || b.type === 'arduino_var_get' || b.type === 'arduino_var_change')
-      vars.add(b.getFieldValue('VAR'));
-    else if (b.type === 'arduino_serial_init' && baud == null) baud = b.getFieldValue('BAUD');
-  }
-
-  if (servos.size) {
-    globals.push('#include <Servo.h>');
-    for (const pin of servos) {
-      globals.push('Servo servo_' + pin + ';');
-      setupLines.push('servo_' + pin + '.attach(' + pin + ');');
+    for (const b of ws.getAllBlocks()) {
+      if (!b.type) continue;
+      if (b.type === 'arduino_digital_write') pins.set(b.getFieldValue('PIN'), 'OUTPUT');
+      else if (b.type === 'arduino_digital_read') pins.set(b.getFieldValue('PIN'), 'INPUT');
+      else if (b.type === 'arduino_servo') servos.add(b.getFieldValue('PIN'));
+      else if (b.type === 'arduino_var_set' || b.type === 'arduino_var_get' || b.type === 'arduino_var_change')
+        vars.add(b.getFieldValue('VAR'));
+      else if (b.type === 'arduino_text_append') textVars.add(b.getFieldValue('VAR'));
+      else if (b.type === 'arduino_serial_init' && baud == null) baud = b.getFieldValue('BAUD');
     }
-  }
-  for (const [pin, mode] of pins) setupLines.push('pinMode(' + pin + ', ' + mode + ');');
-  for (const v of vars) globals.push('int ' + v + ' = 0;');
-  if (baud != null) setupLines.unshift('Serial.begin(' + baud + ');');
+
+    if (servos.size) {
+      globals.push('#include <Servo.h>');
+      for (const pin of servos) {
+        globals.push('Servo servo_' + pin + ';');
+        setupLines.push('servo_' + pin + '.attach(' + pin + ');');
+      }
+    }
+    for (const [pin, mode] of pins) setupLines.push('pinMode(' + pin + ', ' + mode + ');');
+    for (const v of vars) globals.push('int ' + v + ' = 0;');
+    for (const v of textVars) globals.push('String ' + v + ' = "";');
+    if (baud != null) setupLines.unshift('Serial.begin(' + baud + ');');
 
   return { globals: globals.join('\n') + (globals.length ? '\n' : ''), setupLines };
 }
@@ -192,13 +226,28 @@ function emitRoots(gen, ws) {
   return code;
 }
 
+/* Sépare les définitions de fonction (arduino_function) du corps de loop() :
+   une définition `void f() {...}` ne peut PAS vivre dans loop() (C++ invalide).
+   Elles sont émises comme fonctions globales, avant setup(). */
+function splitFunctions(gen, ws) {
+  let loop = '';
+  let funcs = '';
+  for (const b of ws.getTopBlocks(true)) {
+    if (b.outputConnection) continue; // bloc-valeur orphelin
+    const code = gen.blockToCode(b) || '';
+    if (b.type === 'arduino_function') funcs += code;
+    else loop += code;
+  }
+  return { loop, funcs };
+}
+
 export function buildSketch(ws, generator) {
   const gen = generator || arduinoGenerator;
-  const loop = emitRoots(gen, ws);
+  const { loop, funcs } = splitFunctions(gen, ws);
   const ind = (s) => s.split('\n').map((l) => (l ? '  ' + l : l)).join('\n');
   const pre = collectPreamble(ws, gen);
   const header = '// Arduino Blocks — généré avec Blockly 13.3\n';
   const setup = 'void setup() {\n' + (pre.setupLines.length ? ind(pre.setupLines.join('\n')) + '\n' : '') + '}\n';
   const loopF = 'void loop() {\n' + (loop ? ind(loop) : '') + '}\n';
-  return header + pre.globals + setup + '\n' + loopF;
+  return header + pre.globals + funcs + setup + '\n' + loopF;
 }

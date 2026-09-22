@@ -185,12 +185,73 @@ export function defineArduinoBlocks() {
       tooltip: 'Lit le prochain caractère reçu sur le port série.',
     },
     {
-      type: 'arduino_serial_available',
-      message0: 'série : données disponibles ?',
-      args0: [],
-      output: null,
-      colour: '#00979D',
-      tooltip: 'Vrai si des données arrivent sur le port série.',
-    },
-  ]);
+          type: 'arduino_serial_available',
+          message0: 'série : données disponibles ?',
+          args0: [],
+          output: null,
+          colour: '#00979D',
+          tooltip: 'Vrai si des données arrivent sur le port série.',
+        },
+        /* --- textes --- */
+        {
+          type: 'arduino_text',
+          message0: 'texte %1',
+          args0: [{ type: 'field_input', name: 'TEXT', text: 'Bonjour' }],
+          output: null,
+          colour: '#a5745b',
+          tooltip: 'Une chaîne de texte (à afficher sur la console série ou à comparer).',
+        },
+        {
+          type: 'arduino_text_append',
+          message0: 'ajouter le texte %1 à %2',
+          args0: [
+            { type: 'input_value', name: 'TEXT' },
+            { type: 'field_dropdown', name: 'VAR',
+              options: [['message','message'],['texte','texte'],['nom','nom'],['s','s']] },
+          ],
+          previousStatement: null, nextStatement: null,
+          colour: '#a5745b',
+          tooltip: 'Ajoute du texte à la fin de la variable texte.',
+        },
+        {
+          type: 'arduino_text_length',
+          message0: 'longueur du texte %1',
+          args0: [{ type: 'input_value', name: 'TEXT' }],
+          output: null,
+          colour: '#a5745b',
+          tooltip: 'Le nombre de caractères du texte.',
+        },
+        {
+          type: 'arduino_text_equals',
+          message0: 'texte %1 égal à %2',
+          args0: [
+            { type: 'input_value', name: 'A' },
+            { type: 'input_value', name: 'B' },
+          ],
+          output: null,
+          colour: '#a5745b',
+          tooltip: 'Vrai si les deux textes sont identiques.',
+        },
+        /* --- fonctions --- */
+        {
+          type: 'arduino_function',
+          message0: 'fonction %1 %2',
+          args0: [
+            { type: 'field_input', name: 'NAME', text: 'maFonction' },
+            { type: 'input_statement', name: 'BODY' },
+          ],
+          previousStatement: null, nextStatement: null,
+          colour: '#8a2be2',
+          tooltip: 'Définit une fonction réutilisable (à appeler ensuite).',
+        },
+        {
+          type: 'arduino_function_call',
+          message0: 'appeler %1',
+          args0: [{ type: 'field_dropdown', name: 'NAME',
+                    options: [['maFonction','maFonction'],['clignoter','clignoter'],['avancer','avancer']] }],
+          previousStatement: null, nextStatement: null,
+          colour: '#8a2be2',
+          tooltip: 'Exécute une fonction définie plus haut.',
+        },
+      ]);
 }
