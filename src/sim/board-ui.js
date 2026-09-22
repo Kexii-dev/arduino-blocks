@@ -50,8 +50,17 @@ export class BoardUI {
     }
     svg.appendChild(chip);
 
+    // LED_BUILTIN dédiée (la LED « L » de l'Uno, reliée à la pin 13) — composant
+    // distinct de la rangée digitale, comme sur une vraie carte.
+    const lb = el('g', { transform: 'translate(398,150)' });
+    lb.appendChild(el('circle', { cx: 0, cy: 0, r: 9, fill: '#2a2c30', stroke: '#555', 'stroke-width': 1.5, class: 'sim-ledbuiltin' }));
+    lb.appendChild(el('text', { x: 0, y: 24, fill: '#9fd8db', 'font-size': 8, 'font-family': 'monospace', 'text-anchor': 'middle' }, ['LED_BUILTIN']));
+    lb.appendChild(el('text', { x: 0, y: 34, fill: '#6a8', 'font-size': 7, 'font-family': 'monospace', 'text-anchor': 'middle' }, ['(pin 13)']));
+    this.ledBuiltin = lb.childNodes[0];
+    svg.appendChild(lb);
+
     // Boutons (pins 2 & 3) + LED témoin par pin digitale 2..13
-    // rangée de pins digitales droite (2-13) -> LEDs je peux dessiner
+    // rangée de pins digitales droite (2-13) -> LEDs témoins
     const pinX = 470;
     for (let p = 2; p <= 13; p++) {
       const y = 52 + (p - 2) * 18;
@@ -177,23 +186,26 @@ export class BoardUI {
   _onModel(kind, p) {
     if (!p) return;
     if (kind === 'digital' || kind === 'pwm') {
-      // pin 13 = LED built-in (même témoin que la LED pin13) ; on illumine le témoin de la pin si elle existe
-      const target = this.leds[13]; // LED_BUILTIN
+      // pin 13 = LED_BUILTIN : on illumine la LED « L » dédiée ET le témoin de la rangée
+      const on = p.pin === 13 && p.value > 0;
+      if (this.ledBuiltin) {
+        this.ledBuiltin.setAttribute('fill', on ? teal : '#2a2c30');
+        this.ledBuiltin.setAttribute('stroke', on ? '#7ff0f4' : '#555');
+      }
+      const target = this.leds[13];
       if (p.pin === 13 && target) {
-        const on = p.value > 0;
         target.led.setAttribute('fill', on ? teal : '#2a2c30');
-        if (on) target.led.setAttribute('stroke', '#7ff0f4');
-        else target.led.setAttribute('stroke', '#555');
+        target.led.setAttribute('stroke', on ? '#7ff0f4' : '#555');
       }
       // témoin par pin (digital write sur n'importe quelle pin)
       const pin = this.leds[p.pin];
       if (pin && p.pin !== 13) {
-        const on = p.value > 0;
-        pin.led.setAttribute('fill', on ? teal : '#2a2c30');
-        pin.led.setAttribute('stroke', on ? '#7ff0f4' : '#555');
+        const pinOn = p.value > 0;
+        pin.led.setAttribute('fill', pinOn ? teal : '#2a2c30');
+        pin.led.setAttribute('stroke', pinOn ? '#7ff0f4' : '#555');
       }
     } else if (kind === 'analog') {
-      // refleter aussi sur le modèle si c'est l'engine réel qui appelle
+      // refléter aussi sur le modèle si c'est l'engine réel qui appelle
       if (this.sliders['' + p.channel]) this._renderAll();
     } else if (kind === 'tone') {
       if (this.buzzerEl) {
