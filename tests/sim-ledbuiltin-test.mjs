@@ -55,10 +55,10 @@ const lbFill = await page.evaluate(() => {
   const lb = document.querySelector('.sim-ledbuiltin');
   return lb ? lb.getAttribute('fill') : 'NONE';
 });
-console.log('LED_BUILTIN fill après A0 max (teal #00979D attendu):', lbFill);
+console.log('LED_BUILTIN fill après A0 max (jaune #ffcc4d attendu):', lbFill);
 
 await page.click('#simStop');
 console.log('\nErreurs:', errors.slice(0, 3));
-console.log('RESULT:', lbExists && lbFill === '#00979D' ? 'OK' : 'ECHEC');
+console.log('RESULT:', lbExists && lbFill === '#ffcc4d' ? 'OK' : 'ECHEC');
 await browser.close();
 process.exit(0);
