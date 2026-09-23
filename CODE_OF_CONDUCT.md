@@ -39,7 +39,7 @@ représente le projet ou sa communauté.
 ## Application
 
 Les cas de comportement abusif, harcelant ou inacceptable peuvent être signalés en contactant l'équipe du
-projet à **hello@rayroud.com**. Toutes les plaintes seront examinées et traitées d'une manière jugée
+projet à **admin@rayroud.com**. Toutes les plaintes seront examinées et traitées d'une manière jugée
 appropriée aux circonstances.
 
 ## Attribution
