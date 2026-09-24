@@ -10,6 +10,9 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
+    // Autorise l'accès via le tunnel Cloudflare (arduino.kexii.dev) : Vite bloque
+    // par défaut les Host inconnus (403 "Blocked request").
+    allowedHosts: ['arduino.kexii.dev'],
     // En dev, le front (servi par Vite) n'a pas le /api nginx -> proxy serveur vers
     // le backend de prod réel (arduino-compile via nginx). Évite tout problème CORS
     // et permet de valider compile + comptes sans toucher au front de prod.

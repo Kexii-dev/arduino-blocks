@@ -7,6 +7,7 @@ export const UI = {
   fr: {
     tag: 'Blockly 13.3 · tactile + souris',
     codeTitle: 'Code C++ généré (Arduino Uno)',
+    codeHint: '💡 Clique sur un bloc ou sur une ligne de code : l\u0027un surligne l\u0027autre.',
     hint: 'Choisis un bloc dans la barre ci-dessus (tap / clic), puis connecte les pièces.',
     clearConfirm: 'Effacer tous les blocs ?',
     compileRun: 'Compilation en cours…',
@@ -28,6 +29,7 @@ export const UI = {
   en: {
     tag: 'Blockly 13.3 · touch + mouse',
     codeTitle: 'Generated C++ (Arduino Uno)',
+    codeHint: '💡 Click a block or a code line: one highlights the other.',
     hint: 'Pick a block in the bar above (tap / click), then connect the pieces.',
     clearConfirm: 'Clear all blocks?',
     compileRun: 'Compiling…',
@@ -69,7 +71,7 @@ export function applyUI() {
   const title = document.getElementById('codeTitle');
   if (title) title.textContent = t('codeTitle');
   const hint = document.getElementById('hint');
-  if (hint) hint.textContent = t('hint');
+  if (hint) hint.textContent = t('codeHint');
   const btn = document.getElementById('acctTopBtn');
   if (btn) btn.title = t('account');
   const clr = document.getElementById('clearBtn');

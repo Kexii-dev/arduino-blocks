@@ -1,7 +1,7 @@
 import * as Blockly from 'blockly/core';
 import * as libraryBlocks from 'blockly/blocks'; // si/else, boucles, maths, variables
 import { defineArduinoBlocks } from './blocks.js';
-import { arduinoGenerator, buildSketch } from './generator.js';
+import { arduinoGenerator, buildSketchMapped } from './generator.js';
 import { arduinoDarkTheme } from './theme.js';
 import { setLocale, getLang, t, applyUI } from './i18n.js';
 import { initCompile } from './compile.js';
@@ -36,10 +36,35 @@ const ws = Blockly.inject('blocklyDiv', {
 window.Code = { get workspace() { return ws; } };
 window.Blockly = Blockly;
 
-/* ---------- Code C++ ---------- */
+/* ---------- Code C++ pédagogique : lien bloc ↔ lignes ----------
+   On affiche le C++ ligne par ligne, chaque ligne étant rattachée au bloc qui
+   l'a produite (via buildSketchMapped). Clic sur un bloc  -> surligne ses lignes ;
+   clic sur une ligne      -> sélectionne + centre le bloc correspondant. */
+let codeLines = [];            // lignes du C++ affiché (texte brut)
+const lineBlock = [];          // [indexLigne] -> id bloc (ou null), inverse de blockLines
+let selectedBlockId = null;
+const escHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function renderCode() {
+  const pre = document.getElementById('code');
+  if (!pre) return;
+  pre.innerHTML = codeLines.map((line, i) => {
+    const bid = lineBlock[i];
+    const cls = ['code-l'];
+    if (bid && selectedBlockId && bid === selectedBlockId) cls.push('hl');          // bloc sélectionné
+    if (/^\s*\/\//.test(line)) cls.push('cm');                                       // commentaire pédagogique
+    if (/^\s*void\s+(setup|loop)\s*\(\s*\)\s*\{/.test(line)) cls.push('kw');         // colonnes principales
+    const bAttr = bid ? ` data-b="${bid}"` : '';
+    return `<span class="${cls.join(' ')}" data-i="${i}"${bAttr}>${line ? escHtml(line) : ' '}</span>`;
+  }).join('\n');
+}
 function refreshCode() {
   const pre = document.getElementById('code');
-  if (pre) pre.textContent = buildSketch(ws, arduinoGenerator);
+  if (!pre) return;
+  const { code, blockLines } = buildSketchMapped(ws, arduinoGenerator, getLang());
+  codeLines = code.split('\n');
+  lineBlock.length = 0;
+  for (const [bid, [s, e]] of blockLines) { for (let i = s; i <= e; i++) lineBlock[i] = bid; }
+  renderCode();
 }
 /* Synchronise le registre VARS avec les blocs `arduino_var_create` du workspace,
    pour que les dropdowns dynamiques listent les variables déclarées. */
@@ -69,6 +94,12 @@ function rerenderAll() {
 ws.addChangeListener((e) => {
   syncVars();
   syncFunctions();
+  // sélection d'un bloc (clic) -> surligne les lignes de code correspondantes
+  if (e && (e.type === 'selected' || e.type === 'SELECTED')) {
+    selectedBlockId = e.newElementId || null;
+  }
+  // un bloc supprimé -> la sélection n'existe plus
+  if (e && e.type === 'delete') { selectedBlockId = null; }
   // un bloc variable/fonction créé/supprimé/renommé -> re-rendre pour rafraîchir
   // les dropdowns dynamiques (variables + appels de fonction)
   if (e && (e.type === 'create' || e.type === 'delete' || e.type === 'field')) {
@@ -78,7 +109,7 @@ ws.addChangeListener((e) => {
   refreshCode();
   scheduleSave();
 });
-function getSource() { return buildSketch(ws, arduinoGenerator); }
+function getSource() { return buildSketchMapped(ws, arduinoGenerator, getLang()).code; }
 
 /* ---------- Sauvegarde auto du workspace (localStorage) ---------- */
 const LS_KEY = 'arduino-blocks-workspace';
@@ -358,6 +389,32 @@ function setCodePanel(open) {
 }
 if (codeBtn) codeBtn.addEventListener('click', () => setCodePanel(!codePanelOpen));
 setCodePanel(codePanelOpen);
+
+/* Clic sur une ligne de code -> sélectionne + centre le bloc correspondant ;
+   clic sur une ligne sans bloc (préambule) -> efface le surlignage. */
+function wireCodeClicks() {
+  const pre = document.getElementById('code');
+  if (!pre) return;
+  pre.addEventListener('click', (ev) => {
+    const el = ev.target.closest('.code-l');
+    const bid = el && el.dataset.b;
+    if (bid) {
+      selectedBlockId = bid;
+      const blk = ws.getBlockById(bid);
+      if (blk) {
+        try { if (typeof blk.select === 'function') blk.select(); } catch (_) {}
+        try { ws.centerOnBlock(blk); } catch (_) {}
+      }
+      renderCode();
+    } else if (selectedBlockId) {
+      selectedBlockId = null;
+      renderCode();
+    }
+  });
+}
+wireCodeClicks();
+const codeHint = document.getElementById('hint');
+if (codeHint) codeHint.textContent = t('codeHint');
 
 /* ---------- Langue (FR par défaut ; sélecteur FR/EN) ---------- */
 const langSel = document.getElementById('langSel');

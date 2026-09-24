@@ -136,6 +136,16 @@ FQBN fixe : `arduino:avr:uno`.
 6. i18n : le sélecteur de langue recharge la locale Blockly entière (`setLocale` → `applyUI`).
 7. La CSP stricte est à éviter : l'app contient du inline + libs legacy.
 
+## Lien pédagogique bloc ↔ lignes C++ (2026-09-24)
+
+Le panneau `</>` affiche le C++ **ligne par ligne**, chaque ligne étant rattachée au bloc qui l'a produite. Clic sur un bloc → ses lignes se surlignent (teal) ; clic sur une ligne → le bloc se sélectionne et se centre.
+
+- **`buildSketchMapped(ws, gen, lang)`** (`src/generator.js`) : renvoie `{ code, blockLines }` où `blockLines` = Map `blocId → [startLine, endLine]`. Il émet chaque bloc-racine de `loop()` (et les définitions de fonction) avec `blockToCode(block, true)` (thisOnly) en **marchant manuellement la chaîne `next`** — sinon `blockToCode` chaîne tout le reste et le mapping devient grossier (un bloc mappe toute la suite). `buildSketch()` reste un wrapper → compile/tests inchangés.
+- **Annotations pédagogiques** : chaque bloc-racine émet un commentaire FR/EN en tête de son code (`// Pause de 500 ms`, `// Contrôle la LED intégrée…`). Le commentaire fait partie de la **source compilée** (single source) → les numéros de ligne des erreurs arduino-cli restent alignés avec ce que l'élève voit. Les tests générateur utilisent des regex → non cassés.
+- **`src/main.js`** : `renderCode()` rend chaque ligne en `<span class="code-l" data-b="blocId">` ; `lineBlock[i]` = inverse de `blockLines`. Écoute l'événement Blockly `SELECTED` (`e.newElementId`) pour surligner les lignes du bloc sélectionné ; clic sur une ligne → `blk.select()` + `ws.centerOnBlock(blk)`.
+- **Piège** : les blocs `delay`/`if` ne sont PAS des blocs racines (ils sont dans la chaîne `next` du premier bloc) → pour les retrouver en test, utiliser `ws.getAllBlocks()`, pas `getTopBlocks()`.
+- **Piège Vite dev** : le serveur dev bloque les Host inconnus (403 « Blocked request ») → `server.allowedHosts: ['arduino.kexii.dev']` dans `vite.config.js` pour l'accès via le tunnel Cloudflare.
+
 ## Tests (`tests/`)
 
 | Script | Couvre |
@@ -154,6 +164,8 @@ FQBN fixe : `arduino:avr:uno`.
 | `ex-all-test.mjs` | navigateur réel : fenêtre exemples, thèmes, chargement de chaque exemple |
 | `ex-panel-test.mjs` | navigateur réel : ouverture du panneau, fiche, chargement |
 | `sim-ledcolor-test.mjs` | navigateur réel : clic droit LED → menu couleur → choix appliqué |
+| `codemap-test.mjs` (12) | lien pédagogique bloc↔lignes : annotations FR/EN, granularité par bloc, `buildSketch` == mapped |
+| `codemap-browser-test.mjs` | navigateur réel : sélection bloc → surlignage lignes ; clic ligne → sélection bloc |
 | `diag*.mjs` | harnais navigateur playwright-core (rendu réel, console, screenshots) |
 
 Pattern portable Node : `const Blockly = BlocklyNS.Generator ? BlocklyNS : (BlocklyNS.default || BlocklyNS);` (sous Node, `blockly/core` résout en CJS via `.default`). Workspace headless : `new Blockly.Workspace()` — **pas jsdom**.

@@ -264,13 +264,116 @@ function splitFunctions(gen, ws) {
   return { loop, funcs };
 }
 
-export function buildSketch(ws, generator) {
+/* ---- annotations pédagogiques (commentaires injectés dans le C++ généré) ----
+   Chaque bloc-racine statement émet une ligne de commentaire FR/EN en tête de son
+   code, pour que le code affiché et compilé s'explique tout seul. Le commentaire
+   fait partie de la SOURCE compilée (single source) : les numéros de ligne des
+   erreurs arduino-cli restent alignés avec ce que l'élève voit. Les tests
+   générateur utilisent des regex (pas d'égalité exacte) → non cassés. */
+const ANN = {
+  fr: {
+    arduino_led: (b) => `// Contrôle la LED intégrée (pin 13)`,
+    arduino_digital_write: (b) => `// Sortie digitale : broche ${b.getFieldValue('PIN')} à ${b.getFieldValue('STAT')}`,
+    arduino_delay: (b) => `// Pause de ${b.getFieldValue('MS')} ms`,
+    arduino_if: (b) => `// Si la condition est vraie, exécute le bloc « alors », sinon le bloc « sinon »`,
+    arduino_analog_write: (b) => `// Puissance (PWM) de la broche ${b.getFieldValue('PIN')} : ${b.getFieldValue('VAL')}`,
+    arduino_tone: (b) => `// Joue un son de ${b.getFieldValue('FREQ')} Hz sur la broche ${b.getFieldValue('PIN')}`,
+    arduino_notone: (b) => `// Arrête le son sur la broche ${b.getFieldValue('PIN')}`,
+    arduino_servo: (b) => `// Tourne le servo (broche ${b.getFieldValue('PIN')}) à ${b.getFieldValue('DEG')}°`,
+    arduino_var_set: () => `// Modifie la valeur de la variable`,
+    arduino_var_change: () => `// Augmente la valeur de la variable`,
+    arduino_serial_print: () => `// Envoie une ligne à l'ordinateur (console Série)`,
+    arduino_text_append: () => `// Ajoute du texte à la variable`,
+    arduino_function: (b) => `// Définition de la fonction « ${b.getFieldValue('NAME')} »`,
+    arduino_function_call: (b) => `// Appelle la fonction « ${b.getFieldValue('NAME')} »`,
+    controls_whileUntil: () => `// Répète tant que la condition est vraie`,
+    controls_repeat: (b) => `// Répète ${b.getFieldValue('TIMES')} fois`,
+  },
+  en: {
+    arduino_led: () => `// Controls the on-board LED (pin 13)`,
+    arduino_digital_write: (b) => `// Digital output: pin ${b.getFieldValue('PIN')} = ${b.getFieldValue('STAT')}`,
+    arduino_delay: (b) => `// Pause for ${b.getFieldValue('MS')} ms`,
+    arduino_if: () => `// If the condition is true, run the "then" block, else the "else" block`,
+    arduino_analog_write: (b) => `// PWM power of pin ${b.getFieldValue('PIN')}: ${b.getFieldValue('VAL')}`,
+    arduino_tone: (b) => `// Plays a ${b.getFieldValue('FREQ')} Hz tone on pin ${b.getFieldValue('PIN')}`,
+    arduino_notone: (b) => `// Stops the tone on pin ${b.getFieldValue('PIN')}`,
+    arduino_servo: (b) => `// Moves the servo (pin ${b.getFieldValue('PIN')}) to ${b.getFieldValue('DEG')}°`,
+    arduino_var_set: () => `// Updates the value of the variable`,
+    arduino_var_change: () => `// Increases the value of the variable`,
+    arduino_serial_print: () => `// Sends a line to the computer (Serial console)`,
+    arduino_text_append: () => `// Appends text to the variable`,
+    arduino_function: (b) => `// Definition of function "${b.getFieldValue('NAME')}"`,
+    arduino_function_call: (b) => `// Calls function "${b.getFieldValue('NAME')}"`,
+    controls_whileUntil: () => `// Loops while the condition is true`,
+    controls_repeat: (b) => `// Repeats ${b.getFieldValue('TIMES')} times`,
+  },
+};
+function blockAnnotation(block, lang) {
+  const fn = (ANN[lang] || ANN.fr)[block.type];
+  try { return fn ? fn(block) : null; } catch (_) { return null; }
+}
+/* Indente chaque ligne non vide de `chunk` de `indent` espaces (identique à `ind()`),
+   renvoie [premierLigne, dernierLigne] index 0-based dans `lines`. */
+function pushChunk(lines, indent, chunk, blockId, annot) {
+  const start = lines.length;
+  if (annot) lines.push(indent + annot);
+  for (const l of chunk.split('\n')) lines.push(l ? indent + l : '');
+  // la dernière entrée vient du '\n' final de chunk → vide, la retirer
+  if (lines.length > start && lines[lines.length - 1] === '') lines.pop();
+  return [start, lines.length - 1];
+}
+
+/* Version de buildSketch qui renvoie { code, blockLines } :
+   `blockLines` = Map blocId -> [startLine, endLine] (lignes émises par chaque
+   bloc-racine statement de loop() et les définitions de fonction). Les lignes du
+   préambule (globals/setup) ne sont rattachées à aucun bloc unique → non mappées. */
+export function buildSketchMapped(ws, generator, lang) {
   const gen = generator || arduinoGenerator;
-  const { loop, funcs } = splitFunctions(gen, ws);
-  const ind = (s) => s.split('\n').map((l) => (l ? '  ' + l : l)).join('\n');
+  const lines = [];
+  const blockLines = new Map();
   const pre = collectPreamble(ws, gen);
-  const header = '// Arduino Blocks — généré avec Blockly 13.3\n';
-  const setup = 'void setup() {\n' + (pre.setupLines.length ? ind(pre.setupLines.join('\n')) + '\n' : '') + '}\n';
-  const loopF = 'void loop() {\n' + (loop ? ind(loop) : '') + '}\n';
-  return header + pre.globals + funcs + setup + '\n' + loopF;
+  lines.push('// Arduino Blocks — généré avec Blockly 13.3');
+
+  // globals (includes + variables) — pas de bloc unique
+  if (pre.globals) {
+    for (const l of pre.globals.replace(/\n+$/, '').split('\n')) lines.push(l);
+  }
+
+  // définitions de fonction : bloc-racine `arduino_function` → fonction globale
+  for (const b of ws.getTopBlocks(true)) {
+    if (b.outputConnection || b.type !== 'arduino_function') continue;
+    const chunk = gen.blockToCode(b, true) || '';
+    const annot = blockAnnotation(b, lang);
+    const range = pushChunk(lines, '', chunk, b.id, annot);
+    blockLines.set(b.id, range);
+  }
+
+  lines.push('void setup() {');
+  if (pre.setupLines.length) {
+    for (const l of pre.setupLines) lines.push('  ' + l);
+  }
+  lines.push('}');
+  lines.push('');
+
+  lines.push('void loop() {');
+  // Marche manuelle de la pile de statements : on émet CHAQUE bloc de la chaîne
+  // `next` avec thisOnly (sa propre contribution), ce qui préserve le chaînage
+  // (équivalent au scrub_ d'origine) tout en mappant des plages par bloc.
+  for (const b of ws.getTopBlocks(true)) {
+    if (b.outputConnection || b.type === 'arduino_function') continue; // bloc-valeur orphelin ou fonction (émise plus haut)
+    let cur = b;
+    while (cur && cur.type !== 'arduino_function') {
+      const chunk = gen.blockToCode(cur, true) || '';
+      const annot = blockAnnotation(cur, lang);
+      blockLines.set(cur.id, pushChunk(lines, '  ', chunk, cur.id, annot));
+      cur = cur.nextConnection ? cur.nextConnection.targetBlock() : null;
+    }
+  }
+  lines.push('}');
+
+  return { code: lines.join('\n'), blockLines };
+}
+
+export function buildSketch(ws, generator) {
+  return buildSketchMapped(ws, generator, 'fr').code;
 }
