@@ -12,6 +12,7 @@ import { initSim } from './sim/sim.js';
 import { api } from './api.js';
 import { APP_VERSION } from './version.js';
 import { EXAMPLES } from './examples.js';
+import { createEditor } from './editor.js';
 import './style.css';
 
 // Affiche la version de l'application dans le header (injectée au build par Vite).
@@ -36,35 +37,38 @@ const ws = Blockly.inject('blocklyDiv', {
 window.Code = { get workspace() { return ws; } };
 window.Blockly = Blockly;
 
-/* ---------- Code C++ pédagogique : lien bloc ↔ lignes ----------
-   On affiche le C++ ligne par ligne, chaque ligne étant rattachée au bloc qui
-   l'a produite (via buildSketchMapped). Clic sur un bloc  -> surligne ses lignes ;
-   clic sur une ligne      -> sélectionne + centre le bloc correspondant. */
-let codeLines = [];            // lignes du C++ affiché (texte brut)
+/* ---------- Code C++ : éditeur direct (B) + lien bloc ↔ lignes (A) ----------
+   Le panneau `</>` est un éditeur CodeMirror prérempli du C++ généré. Modèle UN
+   SENS : les blocs restent la source de vérité. Si l'utilisateur édite à la main,
+   bannière « programme modifié à la main » ; le lien bloc↔lignes reste actif tant
+   que le code n'est pas modifié. */
+let codeLines = [];            // lignes du C++ généré (texte brut)
 const lineBlock = [];          // [indexLigne] -> id bloc (ou null), inverse de blockLines
+let blockLinesMap = new Map(); // blocId -> [start,end]
 let selectedBlockId = null;
-const escHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-function renderCode() {
-  const pre = document.getElementById('code');
-  if (!pre) return;
-  pre.innerHTML = codeLines.map((line, i) => {
-    const bid = lineBlock[i];
-    const cls = ['code-l'];
-    if (bid && selectedBlockId && bid === selectedBlockId) cls.push('hl');          // bloc sélectionné
-    if (/^\s*\/\//.test(line)) cls.push('cm');                                       // commentaire pédagogique
-    if (/^\s*void\s+(setup|loop)\s*\(\s*\)\s*\{/.test(line)) cls.push('kw');         // colonnes principales
-    const bAttr = bid ? ` data-b="${bid}"` : '';
-    return `<span class="${cls.join(' ')}" data-i="${i}"${bAttr}>${line ? escHtml(line) : ' '}</span>`;
-  }).join('\n');
+let editor = null;             // instance CodeMirror
+let manual = false;            // code édité à la main
+let lastCode = null;
+
+function showManualBanner(show) {
+  const b = document.getElementById('manualBanner');
+  if (b) b.style.display = show ? 'flex' : 'none';
 }
 function refreshCode() {
-  const pre = document.getElementById('code');
-  if (!pre) return;
+  if (manual) { showManualBanner(true); return; } // ne pas écraser l'édition manuelle
   const { code, blockLines } = buildSketchMapped(ws, arduinoGenerator, getLang());
   codeLines = code.split('\n');
+  blockLinesMap = blockLines;
   lineBlock.length = 0;
   for (const [bid, [s, e]] of blockLines) { for (let i = s; i <= e; i++) lineBlock[i] = bid; }
-  renderCode();
+  if (editor && code !== lastCode) { editor.setValue(code); lastCode = code; }
+  showManualBanner(false);
+}
+function highlightBlockLines(bid) {
+  if (!editor) return;
+  if (!bid) { editor.clearHighlight(); return; }
+  const r = blockLinesMap.get(bid);
+  if (r) editor.highlight(r[0], r[1]);
 }
 /* Synchronise le registre VARS avec les blocs `arduino_var_create` du workspace,
    pour que les dropdowns dynamiques listent les variables déclarées. */
@@ -95,21 +99,25 @@ ws.addChangeListener((e) => {
   syncVars();
   syncFunctions();
   // sélection d'un bloc (clic) -> surligne les lignes de code correspondantes
-  if (e && (e.type === 'selected' || e.type === 'SELECTED')) {
-    selectedBlockId = e.newElementId || null;
+    if (e && (e.type === 'selected' || e.type === 'SELECTED')) {
+      selectedBlockId = e.newElementId || null;
+      if (!manual) highlightBlockLines(selectedBlockId);
+    }
+    // un bloc supprimé -> la sélection n'existe plus
+    if (e && e.type === 'delete') { selectedBlockId = null; if (!manual) highlightBlockLines(null); }
+    // un bloc variable/fonction créé/supprimé/renommé -> re-rendre pour rafraîchir
+    // les dropdowns dynamiques (variables + appels de fonction)
+    if (e && (e.type === 'create' || e.type === 'delete' || e.type === 'field')) {
+      const b = e.blockId ? ws.getBlockById(e.blockId) : null;
+      if (b && (b.type === 'arduino_var_create' || b.type === 'arduino_function')) rerenderAll();
+    }
+    refreshCode();
+    scheduleSave();
+  });
+  function getSource() {
+    if (manual && editor) return editor.getValue(); // code édité à la main
+    return buildSketchMapped(ws, arduinoGenerator, getLang()).code;
   }
-  // un bloc supprimé -> la sélection n'existe plus
-  if (e && e.type === 'delete') { selectedBlockId = null; }
-  // un bloc variable/fonction créé/supprimé/renommé -> re-rendre pour rafraîchir
-  // les dropdowns dynamiques (variables + appels de fonction)
-  if (e && (e.type === 'create' || e.type === 'delete' || e.type === 'field')) {
-    const b = e.blockId ? ws.getBlockById(e.blockId) : null;
-    if (b && (b.type === 'arduino_var_create' || b.type === 'arduino_function')) rerenderAll();
-  }
-  refreshCode();
-  scheduleSave();
-});
-function getSource() { return buildSketchMapped(ws, arduinoGenerator, getLang()).code; }
 
 /* ---------- Sauvegarde auto du workspace (localStorage) ---------- */
 const LS_KEY = 'arduino-blocks-workspace';
@@ -390,29 +398,39 @@ function setCodePanel(open) {
 if (codeBtn) codeBtn.addEventListener('click', () => setCodePanel(!codePanelOpen));
 setCodePanel(codePanelOpen);
 
-/* Clic sur une ligne de code -> sélectionne + centre le bloc correspondant ;
-   clic sur une ligne sans bloc (préambule) -> efface le surlignage. */
-function wireCodeClicks() {
-  const pre = document.getElementById('code');
-  if (!pre) return;
-  pre.addEventListener('click', (ev) => {
-    const el = ev.target.closest('.code-l');
-    const bid = el && el.dataset.b;
-    if (bid) {
-      selectedBlockId = bid;
-      const blk = ws.getBlockById(bid);
-      if (blk) {
-        try { if (typeof blk.select === 'function') blk.select(); } catch (_) {}
-        try { ws.centerOnBlock(blk); } catch (_) {}
+/* Éditeur C++ direct (B) : CodeMirror prérempli du C++ généré. Le lien bloc↔lignes
+   (A) reste actif tant que le code n'est pas modifié à la main. */
+const codeEditorEl = document.getElementById('codeEditor');
+if (codeEditorEl) {
+  const initial = buildSketchMapped(ws, arduinoGenerator, getLang()).code;
+  editor = createEditor(codeEditorEl, initial, {
+    onManualEdit: () => { manual = true; showManualBanner(true); },
+    onSelectionChange: (line) => {
+      if (manual) return;
+      const bid = lineBlock[line];
+      if (bid) {
+        selectedBlockId = bid;
+        const blk = ws.getBlockById(bid);
+        if (blk) {
+          try { if (typeof blk.select === 'function') blk.select(); } catch (_) {}
+          try { ws.centerOnBlock(blk); } catch (_) {}
+        }
       }
-      renderCode();
-    } else if (selectedBlockId) {
-      selectedBlockId = null;
-      renderCode();
-    }
+    },
   });
+  lastCode = initial;
+  // hooks de test (navigateur) : accès à l'éditeur et à la source compilée
+  window.__arduinoEditor = editor;
+  window.__getSource = getSource;
 }
-wireCodeClicks();
+/* Bouton « Revenir aux blocs » : abandonne l'édition manuelle et régénère depuis les blocs. */
+const manualRevert = document.getElementById('manualRevert');
+if (manualRevert) manualRevert.addEventListener('click', () => {
+  manual = false;
+  if (editor) editor.setManual(false);
+  refreshCode();
+  showManualBanner(false);
+});
 const codeHint = document.getElementById('hint');
 if (codeHint) codeHint.textContent = t('codeHint');
 

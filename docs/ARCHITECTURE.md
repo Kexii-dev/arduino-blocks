@@ -146,6 +146,17 @@ Le panneau `</>` affiche le C++ **ligne par ligne**, chaque ligne étant rattach
 - **Piège** : les blocs `delay`/`if` ne sont PAS des blocs racines (ils sont dans la chaîne `next` du premier bloc) → pour les retrouver en test, utiliser `ws.getAllBlocks()`, pas `getTopBlocks()`.
 - **Piège Vite dev** : le serveur dev bloque les Host inconnus (403 « Blocked request ») → `server.allowedHosts: ['arduino.kexii.dev']` dans `vite.config.js` pour l'accès via le tunnel Cloudflare.
 
+## Éditeur C++ direct (Option B, 2026-09-24)
+
+Le panneau `</>` est un **vrai éditeur de code** (CodeMirror 6), prérempli du C++ généré. Modèle **UN SENS** : les blocs restent la source de vérité.
+
+- **`src/editor.js`** : `createEditor(container, code, { onManualEdit, onSelectionChange })` → instance CodeMirror (thème sombre teal, numéros de ligne, C++ highlight, historique, Tab = indentation). Expose `getValue/setValue/highlight/clearHighlight/isManual/setManual`.
+- **Mode manuel** : dès que l'utilisateur tape (`docChanged`), `onManualEdit` → bannière « Programme modifié à la main » + bouton « ↩ Revenir aux blocs ». `getSource()` renvoie alors le **code édité** (compile/flash/sim/comptes utilisent `getSource` → le code à la main compile et se sauvegarde). Le lien bloc↔lignes (A) est désactivé en mode manuel.
+- **`setValue` anti-boucle** : `manual=true` pendant le dispatch interne, sinon le listener re-détecte notre propre changement comme une édition manuelle (boucle infinie).
+- **Surlignage bloc↔lignes** : `Decoration.line({class:'cm-block-hl'})` — ⚠️ `.range()` attend une **POSITION** (offset caractère), pas un numéro de ligne → `doc.line(n).from`.
+- **Hooks de test** : `window.__arduinoEditor` (instance) + `window.__getSource` (source compilée) exposés pour les tests navigateur.
+- **Piège patch tool** : `main.js`/`editor.js`/`index.html` se corrompent au patch (indentation, `getetLang`, `__getSourcece`, accolades) → après CHAQUE patch, `node --check` + relire ; si corrompu, réécrire le fichier via `write_file` (pas re-patch).
+
 ## Tests (`tests/`)
 
 | Script | Couvre |
@@ -165,7 +176,7 @@ Le panneau `</>` affiche le C++ **ligne par ligne**, chaque ligne étant rattach
 | `ex-panel-test.mjs` | navigateur réel : ouverture du panneau, fiche, chargement |
 | `sim-ledcolor-test.mjs` | navigateur réel : clic droit LED → menu couleur → choix appliqué |
 | `codemap-test.mjs` (12) | lien pédagogique bloc↔lignes : annotations FR/EN, granularité par bloc, `buildSketch` == mapped |
-| `codemap-browser-test.mjs` | navigateur réel : sélection bloc → surlignage lignes ; clic ligne → sélection bloc |
+| `editor-browser-test.mjs` | navigateur réel : éditeur CodeMirror monté, annotations, surlignage bloc, édition manuelle → bannière + getSource, revert |
 | `diag*.mjs` | harnais navigateur playwright-core (rendu réel, console, screenshots) |
 
 Pattern portable Node : `const Blockly = BlocklyNS.Generator ? BlocklyNS : (BlocklyNS.default || BlocklyNS);` (sous Node, `blockly/core` résout en CJS via `.default`). Workspace headless : `new Blockly.Workspace()` — **pas jsdom**.

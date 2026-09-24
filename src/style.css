@@ -38,13 +38,16 @@ aside { position: absolute; top: 10px; right: 10px; width: 360px; max-width: 74v
         font-size: 12px; line-height: 1.5; max-height: 66vh; overflow: auto; z-index: 20; }
 aside h2 { font-size: 12px; margin: 0 0 6px; color: #00979D; font-weight: 600; }
 aside pre { margin: 0; white-space: pre-wrap; color: #9cdcfe; }
-/* ---- lien pédagogique bloc ↔ lignes : surlignage du panneau C++ ---- */
-#code .code-l { display: block; white-space: pre-wrap; border-radius: 2px;
-                transition: background .12s; }
-#code .code-l:hover { background: rgba(0,151,157,.14); cursor: pointer; }
-#code .code-l.hl { background: rgba(0,151,157,.30); box-shadow: inset 2px 0 0 #00979D; }
-#code .code-l.cm { color: #6a9955; }          /* commentaires pédagogiques */
-#code .code-l.kw { color: #4ec9b0; font-weight: 600; }  /* setup / loop */
+/* ---- éditeur C++ direct (B) + lien bloc ↔ lignes (A) ---- */
+#codeEditor { height: 45vh; min-height: 200px; }
+#codeEditor .cm-editor { height: 100%; }
+#codeEditor .cm-scroller { overflow: auto; }
+#codeEditor .cm-block-hl { background: rgba(0,151,157,.30); }
+.manual-banner { display: flex; align-items: center; gap: 8px; justify-content: space-between;
+                 background: rgba(230,102,45,.15); border: 1px solid #e7662d; color: #ffd9c2;
+                 border-radius: 6px; padding: 6px 10px; font-size: 12px; margin-bottom: 6px; }
+.manual-banner button { background: #e7662d; color: #fff; border: 0; border-radius: 6px;
+                        padding: 5px 10px; font-size: 12px; cursor: pointer; font-weight: 600; }
 .hint { font-family: inherit; font-size: 12px; color: #cccccc; margin: 6px 0 0; }
 
 /* ---- accessibilité : focus visible teal ---- */
