@@ -14,13 +14,15 @@ export default defineConfig({
     // par défaut les Host inconnus (403 "Blocked request").
     allowedHosts: ['arduino.kexii.dev'],
     // En dev, le front (servi par Vite) n'a pas le /api nginx -> proxy serveur vers
-    // le backend de prod réel (arduino-compile via nginx). Évite tout problème CORS
-    // et permet de valider compile + comptes sans toucher au front de prod.
+    // un backend de COMPILE. Pendant la feature Mega (2026-09-25), on pointe vers le
+    // backend local de test (arduino-compile:dev, conteneur ard-compile-test :8095,
+    // DB neuve) pour valider la compilation mega SANS toucher au backend de prod.
+    // NB: ça concerne uniquement le dev ; la build prod sert /api via nginx.
     proxy: {
       '/api': {
-        target: 'https://arduino.rayroud.com',
+        target: 'http://127.0.0.1:8095',
         changeOrigin: true,
-        secure: true,
+        secure: false,
       },
     },
   },

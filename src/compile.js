@@ -1,10 +1,13 @@
 import { api } from './api.js';
-import { t } from './i18n.js';
+import { t, getLang, applyUI } from './i18n.js';
+import { getBoard, setBoard, boardIds, boardLabel, boardAvr } from './board.js';
 import { showHackPopup } from './hack.js';
 
 /* Compiler + Téléverser (Web Serial) — portage du contrat prod exact :
    POST /api/compile -> {ok, hex_base64, hex_bytes, size:{flash,flash_pct,ram,ram_pct}}
-   Flash via avrgirl-arduino.global + navigator.serial. */
+   Flash via avrgirl-arduino.global + navigator.serial.
+   Multi-cartes : envoie `board` (uno|mega) au backend ; le flash utilise le nom
+   Avrgirl (boardAvr) et le statut affiche le label (boardLabel). */
 
 export function initCompile(getSource) {
   let lastResult = null;
@@ -15,6 +18,8 @@ export function initCompile(getSource) {
     '<div id="compileBar">' +
     '<div id="compileStatus"></div>' +
     '<a id="compileDl"></a>' +
+    '<label class="board-lab" id="boardLab" for="boardSel"></label>' +
+    '<select id="boardSel" class="board-sel"></select>' +
     '<button id="compileBtn" class="compile-btn">Compiler</button>' +
     '<button id="flashBtn" class="compile-btn"></button>' +
     '</div>';
@@ -24,8 +29,24 @@ export function initCompile(getSource) {
   const flashBtn = document.getElementById('flashBtn');
   const dl = document.getElementById('compileDl');
   const compBtn = document.getElementById('compileBtn');
+  const boardSel = document.getElementById('boardSel');
+  const boardLab = document.getElementById('boardLab');
   flashBtn.textContent = t('flashBtn');
   dl.textContent = t('hexDl');
+  boardLab.textContent = t('boardSelect');
+
+  /* Sélecteur de carte : options = boardIds(), valeur = getBoard() (localStorage). */
+  for (const id of boardIds()) {
+    const o = document.createElement('option');
+    o.value = id;
+    o.textContent = boardLabel(id, getLang());
+    boardSel.appendChild(o);
+  }
+  boardSel.value = getBoard();
+  boardSel.addEventListener('change', () => {
+    setBoard(boardSel.value);
+    applyUI(); // met à jour le titre du panneau C++ avec le nom de la carte
+  });
 
   /* Affiche le statut avec une icône et une classe de couleur ; auto-masquage
      au succès après quelques secondes. */
@@ -46,12 +67,13 @@ export function initCompile(getSource) {
     if (!src || !src.trim()) { setStatus('⚠️ ' + t('noSource'), 'warn'); return; }
     setStatus('⏳ ' + t('compileRun'), '');
     try {
-      const res = await api('/compile', { method: 'POST', body: { source: src } });
+      const res = await api('/compile', { method: 'POST', body: { source: src, board: getBoard() } });
       if (res.ok) {
         lastResult = res;
         const s = res.size || {};
-        setStatus('✅ ' + t('compileOk') +
-          'Flash: ' + (s.flash != null ? s.flash + ' o (' + s.flash_pct + '%)' : '?') +
+        const boardName = boardLabel(getBoard(), getLang());
+        setStatus('✅ ' + t('compileOkFor') + ' ' + boardName + '.' +
+          '\nFlash: ' + (s.flash != null ? s.flash + ' o (' + s.flash_pct + '%)' : '?') +
           ' · RAM: ' + (s.ram != null ? s.ram + ' o (' + s.ram_pct + '%)' : '?') +
           '\n' + res.hex_bytes + ' o de .hex', 'ok');
         dl.style.display = 'block';
@@ -89,7 +111,7 @@ export function initCompile(getSource) {
     }
     setStatus('🎯 ' + t('flashPick'), '');
     try {
-      const avr = new window.AvrgirlArduino({ board: 'uno', debug: true });
+      const avr = new window.AvrgirlArduino({ board: boardAvr(getBoard()), debug: true });
       avr.flash(hexToArrayBuffer(lastResult.hex_base64), (err) => {
         if (err) {
           setStatus('❌ ' + t('flashFail') + (err.message || String(err)) + t('flashFailHint'), 'err');

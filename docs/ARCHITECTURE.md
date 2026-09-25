@@ -157,6 +157,17 @@ Le panneau `</>` est un **vrai éditeur de code** (CodeMirror 6), prérempli du 
 - **Hooks de test** : `window.__arduinoEditor` (instance) + `window.__getSource` (source compilée) exposés pour les tests navigateur.
 - **Piège patch tool** : `main.js`/`editor.js`/`index.html` se corrompent au patch (indentation, `getetLang`, `__getSourcece`, accolades) → après CHAQUE patch, `node --check` + relire ; si corrompu, réécrire le fichier via `write_file` (pas re-patch).
 
+## Multi-cartes : Arduino Mega (2026-09-25)
+
+Ajoute le choix de la carte cible. Le choix est **app** (persisté localStorage) car une personne possède UNE carte ; pas de stockage par-programme (extension possible).
+
+- **Frontend `src/board.js`** : whitelist `uno`/`mega` → `{fqbn, avr (Avrgirl), name{fr,en}}`. `getBoard/setBoard/boardLabel/boardFqbn/boardAvr`. Persistance `localStorage['arduino-blocks-board']` (défaut `uno`).
+- **Sélecteur** dans la barre de compile (compile.js) : `<select id="boardSel">` à partir de `boardIds()` ; au change → `setBoard` + `applyUI()` (titre du panneau C++ + nom de carte).
+- **Compile** : `POST /api/compile` envoie `{source, board}` ; le backend compile avec le FQBN de la whitelist. Flash Avrgirl : `board: boardAvr(getBoard())` → `'uno'` ou `'mega'` (signature ATmega2560 reconnue).
+- **Backend `/root/arduinoweb/backend/server.js`** : `BOARDS = {uno, mega}` (whitelist FQBN) ; `/api/compile` lit `body.board` (défaut `uno`), **rejette 400 toute carte inconnue** (jamais de FQBN arbitraire passé par le client). `/api/health` renvoie `boards:["uno","mega"]`.
+- **DEV** : le `vite dev` proxifie `/api` vers un **backend de test local** (`arduino-compile:dev`, conteneur `ard-compile-test` :8095, DB neuve) pour valider la compile mega SANS toucher le backend de prod (`arduino-compile` :8091 sur VPS3). La build prod sert `/api` via nginx. ⚠️ Sur DEV, les comptes sont donc sur une base neuve (séparée de prod).
+- **Simulateur** : reste basé sur l'Uno (pins ATmega328P) — la Mega n'a pas de visuel dédié pour l'instant.
+
 ## Tests (`tests/`)
 
 | Script | Couvre |
@@ -177,6 +188,7 @@ Le panneau `</>` est un **vrai éditeur de code** (CodeMirror 6), prérempli du 
 | `sim-ledcolor-test.mjs` | navigateur réel : clic droit LED → menu couleur → choix appliqué |
 | `codemap-test.mjs` (12) | lien pédagogique bloc↔lignes : annotations FR/EN, granularité par bloc, `buildSketch` == mapped |
 | `editor-browser-test.mjs` | navigateur réel : éditeur CodeMirror monté, annotations, surlignage bloc, édition manuelle → bannière + getSource, revert |
+| `board-browser-test.mjs` | navigateur réel : sélecteur de carte uno/mega, titre dynamique, compiler Mega → ok + « Arduino Mega » + .hex, Uno → « Arduino Uno » |
 | `diag*.mjs` | harnais navigateur playwright-core (rendu réel, console, screenshots) |
 
 Pattern portable Node : `const Blockly = BlocklyNS.Generator ? BlocklyNS : (BlocklyNS.default || BlocklyNS);` (sous Node, `blockly/core` résout en CJS via `.default`). Workspace headless : `new Blockly.Workspace()` — **pas jsdom**.

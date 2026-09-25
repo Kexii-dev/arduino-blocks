@@ -134,6 +134,11 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
                  font-size: 12px; text-align: left; }
 #compileStatus.err { background: #3a0d0d; border-color: #ff6b6b; color: #ffd7d7; }
 #compileStatus.warn { background: #3a2a0d; border-color: #ffb55c; color: #ffe9c9; }
+/* ---- sélecteur de carte (Mega) dans la barre de compilation ---- */
+.board-sel, .board-lab { font-family: inherit; font-size: 12px; }
+.board-lab { color: #9ee9ed; margin: 0 4px 0 0; }
+.board-sel { background: #223138; color: #e6eef0; border: 1px solid #2f434b; border-radius: 6px;
+             padding: 5px 6px; margin-right: 8px; cursor: pointer; max-width: 130px; }
 
 /* ---- Fenêtre simulation (virtuelle + AVR8js) : flottante, déplaçable, redimensionnable ---- */
 #simPanelWrap { position: fixed; z-index: 9500; background: #181a1c; border: 1px solid #333;
