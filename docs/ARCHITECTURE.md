@@ -56,6 +56,7 @@ Front **statique** (Vite → build `dist/`), servi par nginx. Aucun framework UI
 | `hack.js` | Popup « hacker » : parse + explique les erreurs de compilation |
 | `account.js` | Comptes : modale login/register (zxcvbn + HIBP), CRUD programmes |
 | `examples.js` | Catalogue d'exemples (6 thèmes × 10 exemples) + builders de blocs + fiches explicatives |
+| `func-help.js` | Aide contextuelle : dictionnaire des fonctions Arduino + diagrammes de broches + tooltip CM6 (survol dans l'éditeur C++) |
 
 `public/lib/` : libs vendues en local (pas de CDN) : `zxcvbn.js`, `passwords_words.js` (diceware EFF), `avrgirl-arduino.global.js`.
 
@@ -157,6 +158,18 @@ Le panneau `</>` est un **vrai éditeur de code** (CodeMirror 6), prérempli du 
 - **Hooks de test** : `window.__arduinoEditor` (instance) + `window.__getSource` (source compilée) exposés pour les tests navigateur.
 - **Piège patch tool** : `main.js`/`editor.js`/`index.html` se corrompent au patch (indentation, `getetLang`, `__getSourcece`, accolades) → après CHAQUE patch, `node --check` + relire ; si corrompu, réécrire le fichier via `write_file` (pas re-patch).
 
+### Aide contextuelle + bracket matching (2026-09-25, `func-help.js`)
+
+Deux extensions de **CodeMirror 6** ajoutées dans les `extensions` de l'éditeur :
+- **`bracketMatching()`** (`@codemirror/language`) : met en évidence les paires d'accolades/parenthèses `.cm-matchingBracket` quand le curseur est contre une accolade. Le style est déjà dans `tealTheme` (`.cm-matchingBracket : background teal + outline`).
+- **`arduinoTooltip`** (`hoverTooltip` de `@codemirror/view`) : au survol (~120 ms) d'un nom de fonction connu, affiche un tooltip `.arduino-tip` = signature + explication FR débutant + astuce (💡) + **schéma SVG des broches** (`buildPinSVG`) pour les fonctions à pins.
+
+Le dictionnaire `HELP` (dans `func-help.js`) couvre les fonctions générées par le catalogue de blocs : `pinMode`, `digitalWrite`, `digitalRead`, `analogWrite` (PWM), `analogRead` (A0-A5), `delay`, `delayMicroseconds`, `tone`, `noTone`, `map`, `constrain`, `millis`, `Serial.begin/print/println`.
+- **`buildPinSVG(mode)`** : `'pwm'` (broches 3,5,6,9,10,11), `'analog'` (A0-A5), `'digital'` (D2-D13) ; réutilise le style teal de l'app.
+- **Token detection** `tokenAt(view,pos)` : étend le mot autour du curseur sur `[A-Za-z0-9_.]` → gère `Serial.begin`.
+- Le tooltip est aussi déclenché au **focus** du mot (accessibilité clavier).
+- Tests : `help-browser-test.mjs` (7 : éditeur monté, tooltip digitalWrite = explication + svg, tooltip delay = sans svg, bracket matching ≥2) + `help-screenshot.mjs` (capture pour revue visuelle).
+
 ## Multi-cartes : Arduino Mega (2026-09-25)
 
 Ajoute le choix de la carte cible. Le choix est **app** (persisté localStorage) car une personne possède UNE carte ; pas de stockage par-programme (extension possible).
@@ -189,6 +202,7 @@ Ajoute le choix de la carte cible. Le choix est **app** (persisté localStorage)
 | `codemap-test.mjs` (12) | lien pédagogique bloc↔lignes : annotations FR/EN, granularité par bloc, `buildSketch` == mapped |
 | `editor-browser-test.mjs` | navigateur réel : éditeur CodeMirror monté, annotations, surlignage bloc, édition manuelle → bannière + getSource, revert |
 | `board-browser-test.mjs` | navigateur réel : sélecteur de carte uno/mega, titre dynamique, compiler Mega → ok + « Arduino Mega » + .hex, Uno → « Arduino Uno » |
+| `help-browser-test.mjs` (7) | navigateur réel : tooltip fonctions Arduino (digitalWrite = explication + svg broches, delay = sans svg) + bracket matching (paire d'accolades surlignée) |
 | `diag*.mjs` | harnais navigateur playwright-core (rendu réel, console, screenshots) |
 
 Pattern portable Node : `const Blockly = BlocklyNS.Generator ? BlocklyNS : (BlocklyNS.default || BlocklyNS);` (sous Node, `blockly/core` résout en CJS via `.default`). Workspace headless : `new Blockly.Workspace()` — **pas jsdom**.

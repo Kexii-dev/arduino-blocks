@@ -12,9 +12,10 @@
 import { EditorState, StateField, StateEffect } from '@codemirror/state';
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, Decoration } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
-import { syntaxHighlighting, defaultHighlightStyle, indentUnit } from '@codemirror/language';
+import { syntaxHighlighting, defaultHighlightStyle, indentUnit, bracketMatching } from '@codemirror/language';
 import { cpp } from '@codemirror/lang-cpp';
 import { oneDark } from '@codemirror/theme-one-dark';
+import { arduinoTooltip } from './func-help.js';
 
 /* Thème sombre teal cohérent avec l'app (accent #00979D). On part de oneDark et
    on surcharge la sélection + le fond pour coller au style Arduino Blocks. */
@@ -72,6 +73,8 @@ export function createEditor(container, initialCode, { onManualEdit, onSelection
       history(),
       keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
       indentUnit.of('  '),
+      bracketMatching(),
+      arduinoTooltip,
       syntaxHighlighting(defaultHighlightStyle),
       cpp(),
       oneDark,

@@ -216,3 +216,20 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
   aside { width: 100%; right: 0; top: 0; max-width: none; max-height: 50vh; border-radius: 0; }
   .topgrp { order: 3; width: 100%; }
 }
+
+/* ---- Tooltip "aide fonctions Arduino" (survol dans l'éditeur C++) ---- */
+#codeEditor .cm-tooltip { background: transparent; border: 0; padding: 0; }
+.arduino-tip { background: #1e2124; border: 1px solid #00979D; border-radius: 10px;
+               box-shadow: 0 8px 24px rgba(0,0,0,.55); padding: 12px 14px;
+               max-width: 340px; font-family: system-ui, sans-serif; }
+.arduino-tip-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.arduino-tip-fn { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px;
+                  font-weight: 700; color: #a5f0f4; }
+.arduino-tip-kind { font-size: 11px; color: #00979D; font-weight: 600; text-transform: uppercase;
+                    letter-spacing: .4px; }
+.arduino-tip-fr { font-size: 12.5px; color: #d4d4d4; line-height: 1.55; }
+.arduino-tip-ex { font-size: 12px; color: #ffd9a8; margin-top: 7px; line-height: 1.5;
+                  background: rgba(230,138,45,.10); border-left: 2px solid #e7662d; padding: 5px 8px;
+                  border-radius: 0 6px 6px 0; }
+.arduino-tip-pins { margin-top: 8px; }
+.arduino-tip-pins svg { display: block; max-width: 100%; height: auto; }
