@@ -40,13 +40,21 @@ export function initAccount({ getJson, loadJson, getCode, clearWorkspace }) {
   function renderStrength(pw) {
     const meter = $('acctMeter'), lab = $('acctStrengthLabel'), time = $('acctStrengthTime');
     if (!meter) return;
-    if (!pw) { meter.className = 'acct-meter'; lab && (lab.textContent = ''); time && (time.textContent = ''); return; }
+    if (!pw) { meter.className = 'acct-meter'; meter.style.width = ''; const fl = meter.querySelector('.acct-meter-fill'); if (fl) fl.style.width = ''; lab && (lab.textContent = ''); time && (time.textContent = ''); return; }
     strengthCache = window.zxcvbn ? window.zxcvbn(pw) : null;
     const sc = strengthCache;
     let tone, label, cls, txt;
-    if (pw.length < MIN_PW) { tone = 'weak'; label = 'Trop court (' + pw.length + '/' + MIN_PW + ')'; txt = ''; }
-    else if (!sc) { tone = 'weak'; label = ''; txt = ''; }
+    const fill = meter.querySelector('.acct-meter-fill');
+    if (pw.length < MIN_PW) {
+      tone = 'weak'; label = 'Trop court (' + pw.length + '/' + MIN_PW + ')'; txt = '';
+      // L2 : largeur PROPORTIONNELLE à l'avancement vers le minimum, pas figée à 25%
+      const pct = Math.min(100, Math.max(8, Math.round((pw.length / MIN_PW) * 100)));
+      meter.style.width = '';
+      if (fill) fill.style.width = pct + '%';
+    } else if (!sc) { tone = 'weak'; label = ''; txt = ''; meter.style.width = ''; if (fill) fill.style.width = ''; }
     else {
+      meter.style.width = '';
+      if (fill) fill.style.width = ''; // largeur par paliers CSS .weak/.good/.strong
       const s = sc.score;
       if (s <= 1) { tone = 'weak'; label = 'Très faible'; cls = 'time-bad'; }
       else if (s === 2) { tone = 'weak'; label = 'Faible'; cls = 'time-ok'; }
@@ -120,8 +128,25 @@ export function initAccount({ getJson, loadJson, getCode, clearWorkspace }) {
     return { ok: true };
   }
   function updateRegButton() {
-    const btn = $('acctCreateBtn'), rerr = $('acctRegErr');
+    const btn = $('acctCreateBtn'), rerr = $('acctRegErr'), uerr = $('acctRegUsernameErr');
+    if (uerr) uerr.textContent = '';
     if (!btn) return;
+    const u = $('acctRegUsername'), p = $('acctRegPassword'), p2 = $('acctRegPassword2');
+    const uName = u ? u.value : '', pw = p ? p.value : '', pw2 = p2 ? p2.value : '';
+    const uValid = /^[a-zA-Z0-9._-]{3,40}$/.test(uName);
+
+    // Erreur username sous son propre champ (H1 : plus de message dissocié en bas)
+    if (uName && !uValid) {
+      uerr.textContent = '3-40 caractères (lettres/chiffres/._-).';
+      btn.disabled = true;
+      if (rerr) rerr.textContent = '';
+      return;
+    }
+    if (!uName) {
+      const f = regFeasible();
+      if (u && !pw && !pw2) { btn.disabled = true; if (rerr) rerr.textContent = 'Renseigne un nom d\u0027utilisateur.'; return; }
+      btn.disabled = true; rerr && (rerr.textContent = f.why); return;
+    }
     const f = regFeasible();
     if (!f.ok) { btn.disabled = true; rerr && (rerr.textContent = f.why); return; }
     if (breachStatus === 'pending') { btn.disabled = true; rerr && (rerr.textContent = 'Vérification des fuites en cours…'); return; }
@@ -177,7 +202,8 @@ export function initAccount({ getJson, loadJson, getCode, clearWorkspace }) {
       '          <div class="acct-row"><button id="acctLoginBtn" class="acct-btn acct-primary">Se connecter</button></div>' +
       '        </div>' +
       '        <div id="acctRegisterView" style="display:none">' +
-      '          <label>Nom d\u0027utilisateur</label><input id="acctRegUsername" type="text" autocomplete="username" placeholder="ex. david">' +
+      '          <label>Nom d\\u0027utilisateur</label><input id="acctRegUsername" type="text" autocomplete="username" placeholder="ex. david">' +
+      '          <div id="acctRegUsernameErr" class="acct-err"></div>' +
       '          <label>Mot de passe (' + MIN_PW + ' caractères min.)</label>' +
       '          <div class="acct-pass-row"><input id="acctRegPassword" type="password" autocomplete="new-password">' +
       '            <button class="acct-eye" id="acctRegPwToggle" type="button">👁</button></div>' +

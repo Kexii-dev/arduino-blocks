@@ -211,12 +211,15 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .ex-empty { color: #888; font-size: 13px; text-align: center; padding: 20px 0; }
 
 /* ---- responsive tablette / PC ---- */
-@media (pointer: coarse) {
-  .pal-btn, .tbtn, .acct-btn { min-height: 44px; font-size: 15px; }
+/* any-pointer:coarse couvre AUSSI les PC tactiles / écrans hybrides de classe
+   (pointer:coarse seul ne marche que sur mobile pur). min-height 44px = confort tactile. */
+@media (any-pointer: coarse) {
+  .pal-btn, .tbtn, .acct-btn, .cat-tab { min-height: 44px; font-size: 15px; }
   header h1 { font-size: 18px; }
   aside { width: 100%; right: 0; top: 0; max-width: none; max-height: 50vh; border-radius: 0; }
   .topgrp { order: 3; width: 100%; }
 }
+/* Écrans tactiles en pointer:fine uniquement (PC pur) -> garde les tailles compactes. */
 
 /* ---- Tooltip "aide fonctions Arduino" (survol dans l'éditeur C++) ---- */
 #codeEditor .cm-tooltip { background: transparent; border: 0; padding: 0; }

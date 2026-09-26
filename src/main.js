@@ -212,7 +212,7 @@ function addBlock(type) {
   const block = ws.newBlock(type);
   block.initSvg();
   block.render();
-  block.moveBy(Math.round(40 + Math.random() * 40), Math.round(40 + Math.random() * 40));
+  block.moveBy(Math.round(40 + Math.random() * 40), Math.round(40 + Math.random() * 40) + 24);
   ws.centerOnBlock(block);
   // ws.newBlock ne déclenche PAS d'événement change -> resync manuel du registre
     syncVars();
@@ -271,6 +271,8 @@ function buildDemo() {
     const all = ws.getAllBlocks(true);
     all.forEach((b) => { try { b.initSvg(); } catch (_) { /* ignore */ } });
     all.forEach((b) => { try { b.render(); } catch (_) { /* ignore */ } });
+    // Décale toute la stack vers le bas : le premier bloc ne doit pas coller au haut du canvas
+    try { led.moveBy(0, 24); } catch (_) { /* non bloquant */ }
     try { ws.centerOnBlock(ifb); } catch (_) { /* non bloquant */ }
     setStatus('✅ Demo : ' + ws.getAllBlocks().length + ' blocs');
   } catch (e) {
