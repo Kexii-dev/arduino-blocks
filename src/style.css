@@ -71,6 +71,24 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
                  display: flex; align-items: center; justify-content: center; }
 .acct-card { background: #252526; border: 1px solid #3c3c3c; border-radius: 10px; width: 400px;
              max-width: 94vw; max-height: 90vh; overflow: auto; color: #d4d4d4; }
+.acct-wide { width: 430px; }
+.acct-ok { background: rgba(78,201,122,.14); color: #8bd8a6; border: 1px solid rgba(78,201,122,.3);
+           border-radius: 8px; padding: 12px 14px; font-size: 14px; font-weight: 600; }
+.acct-link { background: none; border: 0; color: #4ec97a; cursor: pointer; font-size: 12px;
+             text-align: center; width: 100%; padding: 4px; }
+.acct-link:hover { text-decoration: underline; }
+.acct-forgot-title { font-size: 15px; font-weight: 600; color: #a5f0f4; }
+.acct-role { color: #ffd166; font-size: 12px; }
+.acct-admin-bar { display: flex; justify-content: space-between; align-items: center;
+                  font-size: 14px; font-weight: 600; color: #ffd166; }
+.acct-admin-list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow: auto; }
+.acct-admin-row { display: flex; justify-content: space-between; align-items: center; gap: 8px;
+                  background: #1e1e1e; border: 1px solid #3c3c3c; border-radius: 8px; padding: 8px 10px; }
+.acct-admin-info { flex: 1; font-size: 13px; line-height: 1.5; }
+.acct-admin-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.acct-admin-act { padding: 5px 8px; font-size: 13px; }
+.acct-admin-del:hover { background: #944040; color: #fff; }
+
 .acct-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px;
              border-bottom: 1px solid #3c3c3c; font-size: 15px; font-weight: 600; color: #a5f0f4; }
 .acct-close { background: none; border: 0; color: #808080; font-size: 22px; cursor: pointer; line-height: 1; }
