@@ -202,7 +202,7 @@ export function initAccount({ getJson, loadJson, getCode, clearWorkspace }) {
       '          <div class="acct-row"><button id="acctLoginBtn" class="acct-btn acct-primary">Se connecter</button></div>' +
       '        </div>' +
       '        <div id="acctRegisterView" style="display:none">' +
-      '          <label>Nom d\\u0027utilisateur</label><input id="acctRegUsername" type="text" autocomplete="username" placeholder="ex. david">' +
+      '          <label>Nom d\u0027utilisateur</label><input id="acctRegUsername" type="text" autocomplete="username" placeholder="ex. david">' +
       '          <div id="acctRegUsernameErr" class="acct-err"></div>' +
       '          <label>Mot de passe (' + MIN_PW + ' caractères min.)</label>' +
       '          <div class="acct-pass-row"><input id="acctRegPassword" type="password" autocomplete="new-password">' +

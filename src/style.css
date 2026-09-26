@@ -108,7 +108,7 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .acct-breach.bad { background: rgba(255,107,107,.12); color: #ffb0b0; }
 .acct-breach.pending { color: #a0a0a0; }
 .acct-gen { background: none; border: 1px dashed #00979D; color: #00979D; border-radius: 6px;
-            padding: 8px; cursor: pointer; font-size: 13px; }
+            padding: 8px; cursor: pointer; font-size: 13px; margin-bottom: 10px; }
 .acct-tip { font-size: 12px; color: #a0a0a0; line-height: 1.5; }
 .acct-who { font-size: 13px; }
 .acct-program-list { display: flex; flex-direction: column; gap: 6px; }
