@@ -2,7 +2,7 @@
 // Programme : digitalRead(2) [entrée] + digitalWrite(4, HIGH) [sortie].
 // Après run, la rangée DIGITAL doit montrer un BOUTON D2 et une LED D4.
 import { chromium } from 'playwright-core';
-const CHROME = '/root/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome';
+const CHROME = process.env.CHROME_PATH || undefined;
 const URL = process.env.URL || 'http://127.0.0.1:5173/';
 
 const browser = await chromium.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox'] });

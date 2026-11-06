@@ -3,7 +3,7 @@
 // (3) sélection d'un bloc -> surlignage des lignes, (4) édition manuelle -> bannière
 // + getSource renvoie le code édité, (5) « Revenir aux blocs » -> régénère.
 import { chromium } from 'playwright-core';
-const CHROME = '/root/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome';
+const CHROME = process.env.CHROME_PATH || undefined;
 const URL = process.env.URL || 'http://127.0.0.1:8090/';
 
 const browser = await chromium.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox'] });

@@ -1,7 +1,7 @@
 // Test navigateur réel du mode "Réelle AVR8js" : compile via /api proxy puis exécute,
 // vérifie que la LED blink (svg fill change) sur le VirtualBoard.
 import { chromium } from 'playwright-core';
-const CHROME = '/root/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome';
+const CHROME = process.env.CHROME_PATH || undefined;
 const URL = process.env.URL || 'http://127.0.0.1:5173/';
 
 const browser = await chromium.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox'] });

@@ -1,5 +1,5 @@
 import { chromium } from 'playwright-core';
-const CHROME = '/root/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome';
+const CHROME = process.env.CHROME_PATH || undefined;
 const browser = await chromium.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 950 } });
 const errors = [];

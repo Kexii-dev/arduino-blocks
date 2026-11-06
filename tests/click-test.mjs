@@ -1,7 +1,7 @@
 import { createRequire } from 'module';
 const require = createRequire('/root/arduino-blockly-poc/');
 const { chromium } = require('playwright-core');
-const browser = await chromium.launch({ executablePath: '/root/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome', headless: true });
+const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined, headless: true });
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 const errs = [];
 page.on('pageerror', e => errs.push('PAGEERROR: ' + (e.message||String(e)).slice(0,300)));

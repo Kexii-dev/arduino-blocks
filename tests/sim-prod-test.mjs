@@ -1,6 +1,6 @@
 // Vérification PROD : https://arduino.rayroud.com — fenêtre sim flottante + LED_BUILTIN.
 import { chromium } from 'playwright-core';
-const CHROME = '/root/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome';
+const CHROME = process.env.CHROME_PATH || undefined;
 const URL = 'https://arduino.rayroud.com/';
 const browser = await chromium.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox'] });
 const page = await browser.newPage({ viewport: { width: 1200, height: 800 } });

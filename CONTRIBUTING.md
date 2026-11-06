@@ -47,4 +47,4 @@ Dans `src/hack.js`, tableau `RULES` : `{ re: /regex sur le message gcc/, explain
 npm test && node tests/gen-test2.mjs && node tests/gen-test3.mjs && node tests/hack-test.mjs
 ```
 
-Tout doit passer. Pour le rendu navigateur réel : `tests/diag*.mjs` (playwright-core, chromium local).
+Tout doit passer. Pour le rendu navigateur réel : `tests/diag*.mjs` (playwright-core). Installez d'abord le Chromium de Playwright avec `npx playwright-core install chromium` ; pour utiliser un autre binaire, définissez `CHROME_PATH=/chemin/vers/chrome`.

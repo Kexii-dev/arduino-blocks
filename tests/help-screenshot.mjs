@@ -1,6 +1,6 @@
 // Screenshot du tooltip "aide fonctions Arduino" + bracket matching (pour montrer à David).
 import { chromium } from 'playwright-core';
-const CHROME = '/root/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome';
+const CHROME = process.env.CHROME_PATH || undefined;
 const URL = 'http://127.0.0.1:8090/';
 const browser = await chromium.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox'] });
 const page = await browser.newPage({ viewport: { width: 980, height: 760 } });

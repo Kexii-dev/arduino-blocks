@@ -3,7 +3,7 @@
 // met à jour le titre du panneau C++, (3) compiler en Mega renvoie un .hex et
 // affiche « Arduino Mega », (4) le même sketch en Uno affiche « Arduino Uno ».
 import { chromium } from 'playwright-core';
-const CHROME = '/root/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome';
+const CHROME = process.env.CHROME_PATH || undefined;
 const URL = process.env.URL || 'http://127.0.0.1:5173/';
 
 const browser = await chromium.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox'] });
