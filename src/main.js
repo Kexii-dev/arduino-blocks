@@ -113,6 +113,7 @@ ws.addChangeListener((e) => {
     }
     refreshCode();
     scheduleSave();
+    if (simOpen && !(e && e.isUiEvent)) sim.refreshPins();
   });
   function getSource() {
     if (manual && editor) return editor.getValue(); // code édité à la main
@@ -476,17 +477,21 @@ const sim = initSim({
 
 function openSim() {
   simOpen = true;
-  simPanelWrap.style.display = 'block';
+  simPanelWrap.style.display = 'flex'; // flex : le contenu (#simPanel) défile dans la fenêtre
   simBtn.classList.add('hl');
+  sim.refreshPins();
   // position par défaut : à droite, pas plein écran
   if (!simPanelWrap.dataset.placed) {
     simPanelWrap.dataset.placed = '1';
-    simPanelWrap.style.left = 'calc(100vw - 576px)';
-    simPanelWrap.style.top = '150px';
+    // assez large pour la carte + le panneau de contrôle côte à côte (≥ 760 px de contenu)
+    const w = Math.min(980, window.innerWidth - 16);
+    const h = Math.min(680, window.innerHeight - 140);
+    simPanelWrap.style.left = Math.max(8, window.innerWidth - w - 16) + 'px';
+    simPanelWrap.style.top = Math.max(8, Math.min(130, window.innerHeight - h - 8)) + 'px';
     simPanelWrap.style.right = 'auto';
     simPanelWrap.style.bottom = 'auto';
-    simPanelWrap.style.width = 'min(560px, 92vw)';
-    simPanelWrap.style.height = 'min(560px, 80vh)';
+    simPanelWrap.style.width = w + 'px';
+    simPanelWrap.style.height = Math.max(320, h) + 'px';
   }
 }
 function closeSim() {
