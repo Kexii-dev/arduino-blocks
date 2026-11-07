@@ -33,17 +33,15 @@ export function initSim(opts) {
 
   // ----- DOM injection -----
   const host = document.createElement('div');
-  host.id = 'simPanel';
+  host.id = 'simHost'; // ≠ #simPanel (conteneur défilant de la fenêtre, index.html)
   host.innerHTML =
     '<div class="sim-bar">' +
-    '<span class="sim-title">🔌 Simulation</span>' +
-    '<select id="simMode" class="sim-mode" title="Moteur de simulation">' +
+    '<select id="simMode" class="sim-mode" title="Moteur de simulation" aria-label="Moteur de simulation">' +
     '<option value="virtual">⚡ Virtuelle (instantanée)</option>' +
     '<option value="avr">🔬 Réelle AVR8js (compile)</option>' +
     '</select>' +
-    '<button id="simRun" class="compile-btn" type="button">▶ Simuler</button>' +
-    '<button id="simStop" class="compile-btn" type="button" disabled>⏹ Arrêter</button>' +
-    '<span id="simStatus" class="sim-status"></span>' +
+    '<button id="simRun" class="sim-run" type="button">▶ Lancer</button>' +
+    '<span id="simStatus" class="sim-status" role="status"></span>' +
     '</div>' +
     '<div id="simBoard" class="sim-board"></div>';
   const anchor = document.getElementById(containerId) || document.body;
@@ -51,19 +49,22 @@ export function initSim(opts) {
 
   const modeSel = document.getElementById('simMode');
   const runBtn = document.getElementById('simRun');
-  const stopBtn = document.getElementById('simStop');
   const simStatus = document.getElementById('simStatus');
   ui.build(document.getElementById('simBoard'));
 
+  // Pastille d'état : idle (gris) | run (vert pulsé) | err (rouge)
   function setStatus(txt, kind) {
     simStatus.textContent = txt;
     simStatus.className = 'sim-status' + (kind ? ' ' + kind : '');
   }
-  function setRunning(on, engineName) {
+  function setRunning(on) {
     running = on;
-    runBtn.disabled = on;
-    stopBtn.disabled = !on;
+    runBtn.textContent = on ? '■ Arrêter' : '▶ Lancer';
+    runBtn.classList.toggle('stop', on);
+    modeSel.disabled = on;
+    if (!on && !simStatus.classList.contains('err')) setStatus('Prêt — clique sur Lancer');
   }
+  setStatus('Prêt — clique sur Lancer');
 
   function stopAll() {
     if (currentEngine) currentEngine.stop();
@@ -72,40 +73,44 @@ export function initSim(opts) {
   }
 
   async function run() {
-      stopAll();
-      const mode = modeSel.value;
-      runningEngine = mode;
-      setStatus('⏳ démarrage…');
-      // Pins digitales dynamiques : bouton si entrée, LED si sortie (selon le programme)
-      ui.setPinModes(collectPinModes(getWorkspace()));
-      if (mode === 'virtual') {
-      const ws = getWorkspace();
-      const vEng = new VirtualEngine(ws, jsGenerator, board, {
+    stopAll();
+    const mode = modeSel.value;
+    runningEngine = mode;
+    setStatus('Démarrage…', 'run');
+    // Broches dynamiques : interrupteur si entrée, LED si sortie (selon le programme)
+    ui.setPinModes(collectPinModes(getWorkspace()));
+    ui.clearOutputs();
+    const onError = (e) => { stopAll(); setStatus('Erreur : ' + (e && e.message ? e.message : e), 'err'); };
+    if (mode === 'virtual') {
+      const vEng = new VirtualEngine(getWorkspace(), jsGenerator, board, {
         speed: 1,
-        onStatus: (s) => setStatus(s),
-        onError: (e) => { setStatus('❌ ' + (e && e.message ? e.message : e), 'err'); stopAll(); },
+        onStatus: () => {},
+        onError,
       });
       currentEngine = vEng;
-      setRunning(true, 'virtual');
+      setRunning(true);
       vEng.start();
-      setStatus('▶ Simulation virtuelle en cours — fais clignoter la LED, bouge les potentiomètres, presse les boutons.');
+      setStatus('En cours — bascule les interrupteurs, bouge les potentiomètres', 'run');
     } else if (mode === 'avr') {
-      const src = getSource();
       const aEng = new Avr8Engine(getWorkspace(), getArduinoGenerator(), board, {
-        onStatus: (s) => setStatus(s),
-        onError: (e) => { setStatus('❌ ' + (e && e.message ? e.message : e), 'err'); stopAll(); },
+        onStatus: (s) => setStatus(s.replace(/^[^\p{L}\d]+/u, ''), 'run'),
+        onError,
       });
       currentEngine = aEng;
-      setRunning(true, 'avr');
-      await aEng.start(src, async (source) => {
+      setRunning(true);
+      await aEng.start(getSource(), async (source) => {
         try { return await compile(source); }
         catch (e) { return { ok: false, error: (e && e.message) || String(e) }; }
       });
     }
   }
 
-  runBtn.addEventListener('click', run);
-  stopBtn.addEventListener('click', stopAll);
+  runBtn.addEventListener('click', () => (running ? stopAll() : run()));
 
-  return { board, ui, stop: stopAll, isRunning: () => running };
+  // Hors simulation, les contrôles suivent le programme en cours d'édition.
+  function refreshPins() {
+    if (!running) ui.setPinModes(collectPinModes(getWorkspace()));
+  }
+
+  return { board, ui, stop: stopAll, isRunning: () => running, refreshPins };
 }

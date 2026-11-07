@@ -161,15 +161,16 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
              padding: 5px 6px; margin-right: 8px; cursor: pointer; max-width: 130px; }
 
 /* ---- Fenêtre simulation (virtuelle + AVR8js) : flottante, déplaçable, redimensionnable ---- */
-#simPanelWrap { position: fixed; z-index: 9500; background: #181a1c; border: 1px solid #333;
-                border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.5); overflow: hidden;
+/* z-index > #compileBar (9999) : la fenêtre passe devant la barre Carte/Compiler. */
+#simPanelWrap { position: fixed; z-index: 10000; background: #181a1c; border: 1px solid #333;
+                border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.55); overflow: hidden;
                 display: flex; flex-direction: column; min-width: 320px; min-height: 240px;
                 max-width: none; max-height: none; }
 #simPanelWrap.sim-max { inset: 0 !important; width: 100vw !important; height: 100vh !important;
                         max-width: none !important; max-height: none !important;
                         border-radius: 0; border: 0; }
 .sim-win-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px;
-               padding: 8px 10px; background: #202224; border-bottom: 1px solid #333;
+               padding: 8px 10px 8px 14px; background: #202224; border-bottom: 1px solid #333;
                cursor: grab; user-select: none; touch-action: none; }
 .sim-win-bar:active { cursor: grabbing; }
 .sim-win-title { color: #9fd8db; font-weight: 700; font-size: 14px; }
@@ -177,28 +178,131 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .sim-win-btn { background: #2a2c30; color: #d4d4d4; border: 1px solid #3c3c3c; border-radius: 6px;
                width: 30px; height: 30px; cursor: pointer; font-size: 13px; line-height: 1; }
 .sim-win-btn:hover { background: #3a3c40; }
-#simPanel { display: flex; flex-direction: column; gap: 8px; padding: 10px; overflow-y: auto; flex: 1; }
+#simPanel { padding: 12px; overflow-y: auto; flex: 1; min-height: 0; container-type: inline-size; }
+#simHost { display: flex; flex-direction: column; gap: 10px; }
 .sim-resize { position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; cursor: nwse-resize;
               touch-action: none; }
 .sim-resize::after { content: ''; position: absolute; right: 3px; bottom: 3px; width: 8px; height: 8px;
                      border-right: 2px solid #555; border-bottom: 2px solid #555; }
+
+/* barre d'outils : moteur + Lancer/Arrêter + état */
 .sim-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.sim-title { color: #9fd8db; font-weight: 700; font-size: 14px; }
-.sim-mode { background: #252526; color: #d4d4d4; border: 1px solid #3c3c3c; border-radius: 6px; padding: 6px 8px; font-size: 12px; }
-.sim-board { background: #202224; border-radius: 10px; padding: 4px; }
+.sim-mode { background: #252526; color: #d4d4d4; border: 1px solid #3c3c3c; border-radius: 8px;
+            padding: 8px 10px; font-size: 13px; }
+.sim-mode:disabled { opacity: .6; }
+.sim-run { background: #00878f; color: #fff; border: 0; border-radius: 8px; padding: 9px 18px;
+           font-weight: 700; font-size: 14px; cursor: pointer; min-width: 112px; }
+.sim-run:hover { background: #009aa3; }
+.sim-run.stop { background: #a33434; }
+.sim-run.stop:hover { background: #b83c3c; }
+.sim-status { display: inline-flex; align-items: center; gap: 7px; color: #aab2b8; font-size: 12px;
+              background: #202224; border: 1px solid #2f3337; border-radius: 999px; padding: 5px 11px;
+              min-width: 0; overflow-wrap: anywhere; }
+.sim-status::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 50%; background: #5d6469; }
+.sim-status.run { color: #bff3d4; border-color: #1f5a3a; }
+.sim-status.run::before { background: #3ddc84; animation: simPulse 1.4s ease-in-out infinite; }
+.sim-status.err { color: #ffc9c9; border-color: #6b2a2a; }
+.sim-status.err::before { background: #ff6b6b; }
+@keyframes simPulse { 50% { opacity: .35; } }
+
+/* mise en page : carte + panneau de contrôle (côte à côte si la fenêtre est large) */
+.sim-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-items: start;
+              grid-template-areas: "stage" "side" "serial"; }
+.sim-stage { grid-area: stage; }
+.sim-side { grid-area: side; }
+.sim-serial { grid-area: serial; }
+@container (min-width: 760px) {
+  .sim-layout { grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
+                grid-template-areas: "stage side" "serial side"; grid-template-rows: auto 1fr; }
+}
+.sim-stage { background: radial-gradient(ellipse at 50% 40%, #2a2e31 0%, #1b1d1f 75%); border: 1px solid #2a2d30;
+             border-radius: 12px; padding: 10px; }
 .sim-board-svg { width: 100%; height: auto; display: block; }
-.sim-btn { cursor: pointer; }
-.sim-knob { cursor: ns-resize; }
-.sim-status { color: #7fd; font-size: 12px; flex-basis: 100%; }
-.sim-status.err { color: #ff8b8b; }
-.sim-serial { background: #0d1216; border: 1px solid #233a2d; border-radius: 8px; margin-top: 4px; }
-.sim-serial-title { color: #8ec9a5; font-size: 11px; padding: 6px 10px; font-weight: 700;
-                    display: flex; justify-content: space-between; align-items: center; }
-.sim-serial-clear { cursor: pointer; font-weight: 400; text-decoration: underline; color: #6aa; font-size: 10px; }
-.sim-serial-body { margin: 0; padding: 4px 10px 10px; min-height: 40px; max-height: 120px; overflow-y: auto;
-                   color: #b8f0cf; font-family: monospace; font-size: 12px; white-space: pre-wrap; }
-#simRun { background: #00878f; }
-#simStop { background: #8f2d2d; }
+.sim-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.sim-card { background: #1f2123; border: 1px solid #2c2f33; border-radius: 10px; padding: 10px 12px; }
+.sim-card[hidden] { display: none; }
+.sim-card-title { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+                  color: #9fd8db; font-size: 12px; font-weight: 700; margin-bottom: 8px; }
+.sim-hint { margin: 0 0 8px; color: #8a9399; font-size: 12px; line-height: 1.4; }
+.sim-pin-name { font-family: monospace; font-size: 12px; color: #e6eef0; font-weight: 700; }
+
+/* broches numériques : interrupteurs (entrées) + LEDs (sorties) */
+.sim-pin-group + .sim-pin-group { margin-top: 10px; }
+.sim-group-label { color: #8a9399; font-size: 11px; margin-bottom: 6px; }
+.sim-pin-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.sim-btn { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 10px;
+           background: #26292c; border: 1px solid #383c40; border-radius: 8px; cursor: pointer; color: inherit; }
+.sim-btn:hover { border-color: #4f5559; }
+.sim-sw-track { position: relative; width: 40px; height: 22px; border-radius: 11px; background: #3a3e43;
+                transition: background .15s; }
+.sim-sw-knob { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%;
+               background: #e8eaed; transition: transform .15s; }
+.sim-btn.on .sim-sw-track { background: #00979D; }
+.sim-btn.on .sim-sw-knob { transform: translateX(18px); }
+.sim-sw-state { font-family: monospace; font-size: 10px; color: #8a9399; }
+.sim-btn.on .sim-sw-state { color: #7fe3e8; }
+.sim-dig-led { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 10px;
+               background: #26292c; border: 1px solid #383c40; border-radius: 8px; min-width: 52px; }
+.sim-dig-led-dot { width: 22px; height: 22px; border-radius: 50%; background: #2f3236;
+                   border: 2px solid #4a4e53; transition: background .08s, box-shadow .08s; }
+.sim-dig-led.on .sim-dig-led-dot { border-color: rgba(255,255,255,.55); }
+
+/* potentiomètres A0-A5 */
+.sim-ana-list { display: grid; gap: 6px; }
+.sim-ana-row { display: grid; grid-template-columns: 26px 1fr 40px; align-items: center; gap: 8px; }
+.sim-knob { --pct: 0%; width: 100%; height: 22px; margin: 0; background: transparent; cursor: pointer;
+            -webkit-appearance: none; appearance: none; }
+.sim-knob::-webkit-slider-runnable-track { height: 6px; border-radius: 3px;
+  background: linear-gradient(to right, #00979D var(--pct), #34383c var(--pct)); }
+.sim-knob::-moz-range-track { height: 6px; border-radius: 3px; background: #34383c; }
+.sim-knob::-moz-range-progress { height: 6px; border-radius: 3px; background: #00979D; }
+.sim-knob::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -5px;
+  border-radius: 50%; background: #dff6f7; border: 2px solid #00979D; }
+.sim-knob::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #dff6f7; border: 2px solid #00979D; }
+.sim-ana-val, .sim-pwm-val { font-family: monospace; font-size: 12px; color: #9fd8db; text-align: right; }
+
+/* sorties PWM (lecture seule) */
+.sim-pwm-list { display: grid; gap: 6px; }
+.sim-pwm-row { display: grid; grid-template-columns: 30px 1fr 36px; align-items: center; gap: 8px; }
+.sim-pwm-bar { height: 8px; border-radius: 4px; background: #34383c; overflow: hidden; }
+.sim-pwm-fill { height: 100%; width: 0; background: #e0a35c; transition: width .08s; }
+.sim-pwm-row .sim-pin-name, .sim-pwm-val { color: #e0a35c; }
+
+/* buzzer */
+.sim-buz { display: flex; align-items: center; gap: 10px; }
+.sim-buz-ico { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
+               background: #3b2a5c; color: #d7c5f0; font-size: 16px; }
+.sim-buz-ico.on { background: #7c4dd6; color: #fff; animation: simBuzz .3s ease-in-out infinite alternate; }
+.sim-buz-freq { font-family: monospace; font-size: 13px; color: #d7c5f0; }
+@keyframes simBuzz { to { box-shadow: 0 0 0 6px rgba(124,77,214,.25); } }
+
+/* console série */
+.sim-serial { background: #0d1216; border-color: #233a2d; }
+.sim-serial .sim-card-title { color: #8ec9a5; }
+.sim-serial-clear { background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline;
+                    color: #6aa; font-size: 11px; font-weight: 400; }
+.sim-serial-empty { color: #5f7a6b; font-size: 12px; font-style: italic; padding: 2px 0 6px; }
+.sim-serial-empty[hidden] { display: none; }
+.sim-serial-body { margin: 0; min-height: 24px; max-height: 160px; overflow-y: auto; color: #b8f0cf;
+                   font-family: monospace; font-size: 12px; white-space: pre-wrap; }
+.sim-serial-send { display: flex; gap: 6px; margin-top: 8px; }
+.sim-serial-input { flex: 1; min-width: 0; background: #121a1f; color: #d9f6e6; border: 1px solid #284035;
+                    border-radius: 6px; padding: 6px 8px; font-family: monospace; font-size: 12px; }
+.sim-serial-btn { background: #1f5a3a; color: #dff8ea; border: 0; border-radius: 6px; padding: 6px 10px;
+                  font-size: 12px; cursor: pointer; }
+
+/* menu couleur des LEDs (clic droit) */
+.sim-color-menu { position: fixed; z-index: 20000; background: #202224; border: 1px solid #3c3c3c;
+                  border-radius: 10px; padding: 8px; box-shadow: 0 8px 30px rgba(0,0,0,.6); }
+.sim-color-title { color: #9fd8db; font-size: 12px; font-weight: 700; padding: 2px 4px 6px; }
+.sim-color-grid { display: grid; grid-template-columns: repeat(4, 34px); gap: 6px; }
+.sim-color-swatch { width: 34px; height: 34px; border-radius: 50%; border: 2px solid #3c3c3c; cursor: pointer; }
+.sim-color-swatch.sel { border-color: #fff; }
+
+@media (any-pointer: coarse) {
+  .sim-knob { height: 32px; }
+  .sim-run, .sim-mode { min-height: 44px; }
+}
 
 /* ---- Fenêtre Exemples (choix par thème + fiche explicative) ---- */
 .ex-panel { position: fixed; right: 12px; top: 12px; z-index: 9500; width: 420px; max-width: 92vw;

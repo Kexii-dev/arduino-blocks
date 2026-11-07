@@ -1,459 +1,384 @@
-// Rendu SVG de la carte Arduino Uno virtuelle — UI UNIQUE pour les 2 moteurs.
-// Fond : plan SVG net des pins de l'Uno R3 (coordonnées explicites 800×600).
-// Par-dessus : éléments interactifs aux positions réelles des pins.
-// Se lie au modèle VirtualBoard via board.onChange ; les interactions (boutons,
-// sliders A0-A5, console série) écrivent dans board et/ou appellent les hooks
-// fournis par le contrôleur (engine.setButton / engine.setAnalog).
+// Rendu de la carte Arduino Uno virtuelle — UI UNIQUE pour les 2 moteurs.
+// - La carte : plan SVG de l'Uno R3 (assets/uno.svg) + témoins lumineux superposés
+//   (LED « L » = pin 13, un témoin au-dessus de chaque trou D2-D13).
+// - Le panneau de contrôle : cartes HTML à côté de la carte (ou dessous si étroit) :
+//   broches numériques, potentiomètres A0-A5, sorties PWM, buzzer, console série.
+// Se lie au modèle VirtualBoard via board.onChange ; les interactions écrivent dans
+// board et appellent les hooks du contrôleur (engine.setButton / engine.setAnalog).
 //
-// Pins digitales DYNAMIQUES selon le mode (défini par setPinModes avant le run) :
-//   - pin en entrée (INPUT)  -> bouton pressable nommé (pour la tester)
-//   - pin en sortie (OUTPUT) -> LED nommée (s'allume si HIGH)
-// Le témoin (halo) au-dessus du trou reste toujours présent sur la carte.
+// Broches numériques DYNAMIQUES selon le programme (setPinModes avant le run) :
+//   - entrée (INPUT)  -> interrupteur nommé (pour la tester)
+//   - sortie (OUTPUT) -> LED nommée (s'allume si HIGH ; clic droit = couleur)
+//   - PWM             -> jauge 0-255 en lecture seule
 
 import unoBg from './assets/uno.svg?raw';
 
-const teal = '#00979D';
 const ON = '#ffcc4d';
+const LED_COLORS = [
+  ['#ffcc4d', 'Jaune'], ['#ff4d4d', 'Rouge'], ['#4dff4d', 'Vert'], ['#4d9dff', 'Bleu'],
+  ['#ff8c00', 'Orange'], ['#ff4dff', 'Rose'], ['#ffffff', 'Blanc'], ['#00e5ff', 'Cyan'],
+];
 
-/** Position réelle des pins dans le viewBox du plan (800 × 600). */
+/** Position réelle des trous dans le viewBox du plan (800 × 600). */
 const PIN_X = { 13:392, 12:412, 11:432, 10:452, 9:472, 8:492, 7:552, 6:572, 5:592, 4:612, 3:632, 2:652 };
-const PIN_Y = 64;              // trous du header digital haut
-const ANA_X = { 0:492, 1:512, 2:532, 3:552, 4:572, 5:592 };
-const ANA_Y = 535;             // trous du header analogique
+const PIN_Y = 64;                 // trous du header digital haut
 const LED_L = { x: 630, y: 120 }; // LED_BUILTIN « L »
+const BOARD_VIEWBOX = '8 40 752 520'; // recadré sur la carte (le plan fait 800 × 600)
 
-// Zone de contrôle : 2 rangées sous la carte.
-const DIG_Y = 610;   // rangée pins digitales (boutons/LEDs dynamiques)
-const ANA_Y0 = 700;  // rangée analogiques + buzzer
-const ANA_H = 170;   // hauteur rangée analogique (3 lignes A0-A5 + sliders PWM)
-const VIEW_H = 880;
-
-function el(tag, attrs, children) {
+function svgEl(tag, attrs) {
   const n = document.createElementNS('http://www.w3.org/2000/svg', tag);
   for (const [k, v] of Object.entries(attrs || {})) n.setAttribute(k, v);
-  (children || []).forEach((c) => n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c));
+  return n;
+}
+function h(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
   return n;
 }
 
 export class BoardUI {
   constructor(board, hooks = {}) {
     this.board = board;
-    this.hooks = hooks; // { setButton(pin,pressed), setAnalog(channel,val) } delivered by controller
-    this.leds = {};   // pin -> SVG circle (LED témoin par pin digitale)
-    this.buttons = {}; // pin -> SVG group (bouton ou LED nommée, zone de contrôle)
-    this.sliders = {}; // channel -> {trace,knob,label}
-    this.serialEl = null;
-    this.buzzerEl = null;
-    this.pinModes = {}; // pin -> 'INPUT' | 'OUTPUT' (défini par setPinModes)
-        this.ledColors = {}; // pin -> couleur de la LED de sortie (choisie par clic droit)
-        // abonnement au modèle
-        this.board.onChange = (kind, p) => this._onModel(kind, p);
-      }
+    this.hooks = hooks;     // { setButton(pin,pressed), setAnalog(channel,val) } fournis par le contrôleur
+    this.leds = {};         // pin -> { led } témoin SVG au-dessus du trou
+    this.buttons = {};      // pin -> élément HTML (interrupteur ou LED nommée)
+    this.btnState = {};     // pin -> boolean (interrupteur ON/OFF)
+    this.sliders = {};      // channel -> { input, value }
+    this.pwmBars = {};      // pin -> { fill, value }
+    this.pinModes = {};     // pin -> 'INPUT' | 'OUTPUT' | 'PWM'
+    this.ledColors = {};    // pin -> couleur choisie (clic droit)
+    this._ledOn = {};       // pin -> boolean
+    this.board.onChange = (kind, p) => this._onModel(kind, p);
+  }
 
-      /** Ouvre un menu contextuel de choix de couleur pour une LED de sortie. */
-      _openLedColorMenu(pin, ev) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        const colors = ['#ffcc4d', '#ff4d4d', '#4dff4d', '#4d9dff', '#ff8c00', '#ff4dff', '#ffffff', '#00e5ff'];
-        const names = ['Jaune', 'Rouge', 'Vert', 'Bleu', 'Orange', 'Rose', 'Blanc', 'Cyan'];
-        // retire un menu déjà ouvert
-        const old = document.getElementById('simLedColorMenu');
-        if (old) old.remove();
-        const menu = document.createElement('div');
-        menu.id = 'simLedColorMenu';
-        menu.style.cssText = 'position:fixed;z-index:20000;background:#202224;border:1px solid #3c3c3c;' +
-          'border-radius:10px;padding:8px;box-shadow:0 8px 30px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:4px;';
-        const title = document.createElement('div');
-        title.textContent = 'Couleur LED D' + pin;
-        title.style.cssText = 'color:#9fd8db;font-size:12px;font-weight:700;padding:2px 4px 6px;';
-        menu.appendChild(title);
-        const grid = document.createElement('div');
-        grid.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:6px;';
-        colors.forEach((c, i) => {
-          const sw = document.createElement('div');
-          sw.style.cssText = 'width:34px;height:34px;border-radius:50%;background:' + c + ';cursor:pointer;' +
-            'border:2px solid ' + (this.ledColors[pin] === c ? '#fff' : '#3c3c3c') + ';';
-          sw.title = names[i];
-          sw.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.ledColors[pin] = c;
-            menu.remove();
-            this._repaintCtrlLed(pin);
-          });
-          grid.appendChild(sw);
-        });
-        menu.appendChild(grid);
-        // positionne près du clic, dans les limites de l'écran
-        const mw = 4 * 34 + 5 * 6 + 16;
-        const mh = 8 + 24 + 34 + 8;
-        let x = ev.clientX, y = ev.clientY;
-        if (x + mw > window.innerWidth) x = window.innerWidth - mw - 8;
-        if (y + mh > window.innerHeight) y = window.innerHeight - mh - 8;
-        menu.style.left = x + 'px';
-        menu.style.top = y + 'px';
-        document.body.appendChild(menu);
-        // ferme au clic ailleurs
-        const close = (e) => { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('pointerdown', close); } };
-        setTimeout(() => document.addEventListener('pointerdown', close), 0);
-      }
-
-      /** Repaint la LED de contrôle d'une pin avec sa couleur choisie (ou défaut). */
-      _repaintCtrlLed(pin) {
-        const ctrl = this.buttons[pin];
-        if (!ctrl) return;
-        const dot = ctrl.querySelector('.sim-dig-led-dot');
-        const halo = ctrl.querySelector('.sim-dig-led-halo');
-        const gloss = ctrl.querySelector('.sim-dig-led-gloss');
-        const on2 = this._ledOn[pin];
-        const color = this.ledColors[pin] || '#ffcc4d';
-        if (dot) {
-          dot.setAttribute('fill', on2 ? color : '#2a2c30');
-          dot.setAttribute('stroke', on2 ? '#ffe08a' : '#555');
-        }
-        if (halo) {
-          halo.setAttribute('fill', on2 ? this._rgba(color, 0.35) : 'none');
-          halo.setAttribute('stroke', on2 ? this._rgba(color, 0.6) : 'none');
-        }
-        if (gloss) gloss.setAttribute('opacity', on2 ? 0.85 : 0.5);
-      }
-
-      /** Convertit #rrggbb en rgba(r,g,b,a). */
-      _rgba(hex, a) {
-        const n = parseInt(hex.slice(1), 16);
-        return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
-      }
-
-  /** Définit le mode (INPUT/OUTPUT) de chaque pin digitale, puis re-rend la zone de contrôle. */
+  /** Définit le mode de chaque broche numérique, puis re-rend les contrôles. */
   setPinModes(map) {
     this.pinModes = {};
-    for (const [pin, mode] of (map || new Map())) this.pinModes[pin] = mode;
-    if (this._ctrlG) this._renderDigitalControls();
+    for (const [pin, mode] of (map || new Map())) this.pinModes[+pin] = mode;
+    if (this._digBody) { this._renderDigital(); this._renderPwm(); }
   }
 
   build(container) {
     container.innerHTML = '';
     this._container = container;
-    const svg = el('svg', { viewBox: '0 0 820 ' + VIEW_H, class: 'sim-board-svg', xmlns: 'http://www.w3.org/2000/svg' });
+    container.classList.add('sim-layout');
+
+    // ---- Carte (SVG) ----------------------------------------------------
+    const stage = h('div', 'sim-stage');
+    const svg = svgEl('svg', { viewBox: BOARD_VIEWBOX, class: 'sim-board-svg', role: 'img', 'aria-label': 'Carte Arduino Uno virtuelle' });
     this._svgEl = svg;
-
-    // ---- Fond : plan Uno (800×600) en haut à gauche ----------------------
-    const bgSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    bgSvg.setAttribute('viewBox', '0 0 800 600');
-    bgSvg.setAttribute('x', '0');
-    bgSvg.setAttribute('y', '0');
-    bgSvg.setAttribute('width', '800');
-    bgSvg.setAttribute('height', '600');
-    bgSvg.setAttribute('class', 'uno-bg');
-    bgSvg.innerHTML = unoBg.replace(/^<\?xml[^>]*\?>/, '').replace(/<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
-    svg.appendChild(bgSvg);
-
-    // =====================================================================
-    // ÉLÉMENTS INTERACTIFS SUPERPOSÉS
-    // =====================================================================
-
-    // ---- LED_BUILTIN dédiée : par-dessus la LED « L » du plan ----------
-    const lb = el('g', { transform: 'translate(' + LED_L.x + ',' + LED_L.y + ')' });
-    lb.appendChild(el('circle', { cx: 0, cy: 0, r: 4, fill: '#555', stroke: '#333', 'stroke-width': 1, class: 'sim-ledbuiltin' }));
-    svg.appendChild(lb);
-    this.ledBuiltin = lb.childNodes[0];
-
-    // ---- Témoins LEDs des pins digitales 2..13 (halo autour du trou) ----
+    const bg = svgEl('g', { class: 'uno-bg' });
+    bg.innerHTML = unoBg.replace(/^<\?xml[^>]*\?>/, '').replace(/<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+    svg.appendChild(bg);
+    // halo commun aux LEDs allumées
+    const defs = svgEl('defs');
+    defs.innerHTML = '<filter id="simGlow" x="-200%" y="-200%" width="500%" height="500%">' +
+      '<feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>';
+    svg.appendChild(defs);
+    // LED_BUILTIN « L » (pin 13)
+    this.ledBuiltin = svgEl('circle', { cx: LED_L.x, cy: LED_L.y, r: 6, fill: '#555', stroke: '#333', 'stroke-width': 1, class: 'sim-ledbuiltin' });
+    svg.appendChild(this.ledBuiltin);
+    // témoins au-dessus des trous D2..D13
     for (let p = 2; p <= 13; p++) {
-      const led = el('circle', { cx: PIN_X[p], cy: PIN_Y - 12, r: 4, fill: '#2a2c30', stroke: '#777', 'stroke-width': .8, 'data-pin': p });
-      this.leds[p] = { led, x: PIN_X[p], y: PIN_Y - 12 };
+      const led = svgEl('circle', { cx: PIN_X[p], cy: PIN_Y - 12, r: 4, fill: '#2a2c30', stroke: '#777', 'stroke-width': .8, 'data-pin': p });
+      this.leds[p] = { led };
       svg.appendChild(led);
     }
+    stage.appendChild(svg);
+    container.appendChild(stage);
 
-    // =====================================================================
-    // ZONE DE CONTRÔLE (sous la carte)
-    // =====================================================================
+    // ---- Panneau de contrôle (HTML) --------------------------------------
+    const side = h('div', 'sim-side');
 
-    // ---- Rangée 1 : pins digitales dynamiques (boutons/LEDs nommés) ----
-    svg.appendChild(el('rect', { x: 10, y: DIG_Y, width: 800, height: 82, rx: 10, fill: '#16181a', stroke: '#2a2d30' }));
-    svg.appendChild(el('text', { x: 20, y: DIG_Y + 16, fill: '#9fd8db', 'font-size': 10, 'font-family': 'monospace' }, ['DIGITAL']));
-    const ctrlG = el('g', { class: 'sim-digital-ctrl' });
-    this._ctrlG = ctrlG;
-    svg.appendChild(ctrlG);
+    // Broches numériques
+    const dig = this._card('🔘 Broches numériques', 'sim-card-dig');
+    this._digBody = h('div', 'sim-digital-ctrl');
+    dig.appendChild(this._digBody);
+    side.appendChild(dig);
 
-    // ---- Rangée 2 : analogiques + buzzer ----
-    svg.appendChild(el('rect', { x: 10, y: ANA_Y0, width: 800, height: ANA_H, rx: 10, fill: '#16181a', stroke: '#2a2d30' }));
-    svg.appendChild(el('text', { x: 20, y: ANA_Y0 + 16, fill: '#9fd8db', 'font-size': 10, 'font-family': 'monospace' }, ['ANALOG']));
-    // conteneur des sliders PWM (sorties read-only, pilotés par l'app)
-    const pwmG = el('g', { class: 'sim-pwm-ctrl' });
-    this._pwmG = pwmG;
-    svg.appendChild(pwmG);
-
-    // Sliders A0..A5 — horizontaux, 2 par ligne (3 lignes)
-    // Chaque slider : piste horizontale + curseur qui glisse + label A0..A5 à gauche.
-    const SL_W = 250;          // longueur de piste
-    const SL_X1 = 70;          // départ piste slider 1
-    const SL_X2 = 420;         // départ piste slider 2
-    const SL_ROW = [22, 46, 70]; // décalages Y des 3 lignes
+    // Potentiomètres A0-A5
+    const ana = this._card('🎛️ Entrées analogiques (A0-A5)', 'sim-card-ana');
+    ana.appendChild(h('p', 'sim-hint', 'Déplace un curseur : analogRead() renvoie une valeur de 0 à 1023.'));
+    const list = h('div', 'sim-ana-list');
     for (let c = 0; c < 6; c++) {
-      const row = Math.floor(c / 2);       // 0,1,2
-      const col = c % 2;                   // 0=gauche, 1=droite
-      const y = ANA_Y0 + SL_ROW[row];
-      const x1 = col === 0 ? SL_X1 : SL_X2;
-      const x2 = x1 + SL_W;
-      const trace = el('line', { x1: x1, y1: y, x2: x2, y2: y, stroke: '#2a2d30', 'stroke-width': 5, 'stroke-linecap': 'round' });
-      const fill = el('line', { x1: x1, y1: y, x2: x1, y2: y, stroke: teal, 'stroke-width': 5, 'stroke-linecap': 'round', class: 'sim-slider-fill' });
-      const knob = el('circle', { cx: x1, cy: y, r: 6, fill: teal, stroke: '#dff6f7', 'stroke-width': 1.5, 'data-ch': c, class: 'sim-knob' });
-      const label = el('text', { x: x1 - 12, y: y + 3, fill: '#cfe', 'font-size': 8, 'font-family': 'monospace', 'text-anchor': 'end', 'data-ch': c }, ['A' + c]);
-      const pct = el('text', { x: x2 + 14, y: y + 3, fill: '#9fd8db', 'font-size': 8, 'font-family': 'monospace', 'data-ch': c, class: 'sim-slider-pct' }, ['0%']);
-      this.sliders[c] = { trace, fill, knob, label, pct, x1, x2, y, val: 0 };
-      svg.appendChild(trace); svg.appendChild(fill); svg.appendChild(knob); svg.appendChild(label); svg.appendChild(pct);
+      const row = h('label', 'sim-ana-row');
+      const name = h('span', 'sim-pin-name', 'A' + c);
+      const input = h('input', 'sim-knob');
+      input.type = 'range'; input.min = 0; input.max = 1023; input.value = 0; input.dataset.ch = c;
+      input.setAttribute('aria-label', 'Potentiomètre A' + c);
+      const val = h('output', 'sim-ana-val', '0');
+      input.addEventListener('input', () => this._setSliderValue(c, +input.value));
+      row.append(name, input, val);
+      list.appendChild(row);
+      this.sliders[c] = { input, val, value: 0 };
     }
+    ana.appendChild(list);
+    side.appendChild(ana);
 
-    // Buzzer (pin 11), à droite
-    const buz = el('g', { transform: 'translate(760,' + (ANA_Y0 + 38) + ')' });
-    buz.appendChild(el('circle', { cx: 0, cy: 0, r: 16, fill: '#6f42c1', stroke: '#43256e', 'stroke-width': 2 }));
-    buz.appendChild(el('text', { x: 0, y: 4, fill: '#fff', 'font-size': 12, 'text-anchor': 'middle', class: 'sim-buz-ico' }, ['♪']));
-    buz.appendChild(el('text', { x: 0, y: -22, fill: '#d7c5f0', 'font-size': 8, 'font-family': 'monospace', 'text-anchor': 'middle', class: 'sim-buz-freq' }, ['— Hz']));
-    this.buzzerEl = { ico: buz.childNodes[1], freq: buz.childNodes[2] };
-    svg.appendChild(buz);
-    svg.appendChild(el('text', { x: 760, y: ANA_Y0 + 74, fill: '#9fd8db', 'font-size': 8, 'font-family': 'monospace', 'text-anchor': 'middle' }, ['Buzzer D11']));
+    // Sorties PWM (masquée s'il n'y en a pas)
+    this._pwmCard = this._card('🎚️ Sorties PWM (analogWrite)', 'sim-card-pwm');
+    this._pwmBody = h('div', 'sim-pwm-list');
+    this._pwmCard.appendChild(this._pwmBody);
+    side.appendChild(this._pwmCard);
 
-    container.appendChild(svg);
+    // Buzzer
+    const buz = this._card('🔊 Buzzer', 'sim-card-buz');
+    const buzRow = h('div', 'sim-buz');
+    this._buzIcon = h('span', 'sim-buz-ico', '♪');
+    this._buzFreq = h('span', 'sim-buz-freq', 'silencieux');
+    buzRow.append(this._buzIcon, this._buzFreq);
+    buz.appendChild(buzRow);
+    side.appendChild(buz);
 
-    // ---- Console série (hors SVG, en dessous) ----------------------------
-    const console = document.createElement('div');
-    console.className = 'sim-serial';
-    console.innerHTML = '<div class="sim-serial-title">📡 Console série <span class="sim-serial-clear">vider</span></div><pre class="sim-serial-body"></pre>';
-    this.serialBody = console.querySelector('.sim-serial-body');
-    const clearBtn = console.querySelector('.sim-serial-clear');
-    clearBtn.addEventListener('click', () => { this.serialBody.textContent = ''; this.board.serialClear(); });
-    container.appendChild(console);
+    // Console série
+    const ser = this._card('📡 Console série', 'sim-serial');
+    const clear = h('button', 'sim-serial-clear', 'Vider');
+    clear.type = 'button';
+    clear.addEventListener('click', () => { this.serialBody.textContent = ''; this.board.serialClear(); this._serialEmpty(true); });
+    ser.querySelector('.sim-card-title').appendChild(clear);
+    this.serialBody = h('pre', 'sim-serial-body');
+    this._serialPh = h('div', 'sim-serial-empty', "Rien reçu pour l'instant. Le bloc « Envoyer ligne » écrit ici.");
+    const send = h('form', 'sim-serial-send');
+    const sendIn = h('input', 'sim-serial-input');
+    sendIn.placeholder = 'Envoyer à la carte (Serial.read)…';
+    sendIn.setAttribute('aria-label', 'Texte à envoyer à la carte');
+    const sendBtn = h('button', 'sim-serial-btn', 'Envoyer');
+    sendBtn.type = 'submit';
+    send.append(sendIn, sendBtn);
+    send.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      for (const ch of sendIn.value) this.board.serialInput(ch.charCodeAt(0));
+      sendIn.value = '';
+    });
+    ser.append(this._serialPh, this.serialBody, send);
 
-    this._bindSliders();
+    // console = enfant direct de la grille : sous la carte en mode large, en dernier si étroit
+    container.append(side, ser);
 
-    // état initial position des sliders à 0
-    this._renderAll();
-    this._renderDigitalControls();
+    this._renderDigital();
+    this._renderPwm();
     return this;
   }
 
-  /** Rend les boutons (entrée) / LEDs (sortie) des pins digitales dans la rangée 1. */
-  _renderDigitalControls() {
-    const g = this._ctrlG;
-    if (!g) return;
-    while (g.firstChild) g.removeChild(g.firstChild);
+  _card(title, cls) {
+    const c = h('section', 'sim-card ' + (cls || ''));
+    const t = h('div', 'sim-card-title');
+    t.appendChild(h('span', null, title));
+    c.appendChild(t);
+    return c;
+  }
+
+  _pinsWith(mode) {
+    const out = [];
+    for (let p = 2; p <= 13; p++) if (this.pinModes[p] === mode) out.push(p);
+    return out;
+  }
+
+  /** Interrupteurs (entrées) puis LEDs nommées (sorties). */
+  _renderDigital() {
+    const g = this._digBody;
+    g.innerHTML = '';
     this.buttons = {};
-    this.btnState = {}; // pin -> boolean (interrupteur à bascule ON/OFF)
-    let x = 26;
-    // Passe 1 : toutes les entrées (interrupteurs) à gauche
-    for (let p = 2; p <= 13; p++) {
-      const mode = this.pinModes[p] || this.pinModes['' + p];
-      if (mode !== 'INPUT') continue;
-      // Interrupteur à bascule ON/OFF nommé (track + curseur + étiquette O/I)
-      const b = el('g', { transform: 'translate(' + x + ',' + (DIG_Y + 38) + ')', 'data-pin': p, class: 'sim-btn' });
-      b.appendChild(el('rect', { x: 0, y: 0, width: 52, height: 26, rx: 13, fill: '#2b2e31', stroke: '#4a4e53', 'stroke-width': 1.2, class: 'sim-sw-track' }));
-      b.appendChild(el('rect', { x: 3, y: 3, width: 46, height: 20, rx: 10, fill: 'none', stroke: '#1d2023', 'stroke-width': 1 }));
-      b.appendChild(el('circle', { cx: 13, cy: 13, r: 9, fill: '#e8eaed', stroke: '#9aa0a6', 'stroke-width': 1, class: 'sim-sw-knob' }));
-      b.appendChild(el('circle', { cx: 11, cy: 9.5, r: 3, fill: '#fff', opacity: .55 }));
-      b.appendChild(el('text', { x: 9.5, y: 18, fill: '#7d848c', 'font-size': 7, 'font-family': 'monospace', 'text-anchor': 'middle' }, ['O']));
-      b.appendChild(el('text', { x: 42.5, y: 18, fill: '#7d848c', 'font-size': 7, 'font-family': 'monospace', 'text-anchor': 'middle' }, ['I']));
-      b.appendChild(el('text', { x: 26, y: 43, fill: '#eee', 'font-size': 9, 'font-family': 'monospace', 'text-anchor': 'middle' }, ['D' + p]));
-      this.buttons[p] = b;
-      this.btnState[p] = false;
-      g.appendChild(b);
-      x += 68;
+    const ins = this._pinsWith('INPUT');
+    const outs = this._pinsWith('OUTPUT');
+    if (!ins.length && !outs.length) {
+      g.appendChild(h('p', 'sim-hint',
+        'Aucune broche utilisée. Ajoute « Écrire broche » (LED) ou « Lire broche » (interrupteur) à ton programme, puis lance la simulation.'));
+      return;
     }
-    // Passe 2 : toutes les sorties (LEDs) alignées TOUT À DROITE de la rangée
-    const outPins = [];
-    for (let p = 2; p <= 13; p++) {
-      const m = this.pinModes[p] || this.pinModes['' + p];
-      if (m === 'OUTPUT') outPins.push(p);
-    }
-    // bord droit fixe (rangée 800 de large, marge ~20) ; on remonte vers la gauche
-    let lx = 757 - (outPins.length - 1) * 68;
-    for (const p of outPins) {
-      const l = el('g', { transform: 'translate(' + lx + ',' + (DIG_Y + 34) + ')', 'data-pin': p, class: 'sim-dig-led' });
-      l.appendChild(el('circle', { cx: 26, cy: 14, r: 17, fill: 'none', class: 'sim-dig-led-halo' }));
-      l.appendChild(el('circle', { cx: 26, cy: 14, r: 12, fill: '#1c1f22', stroke: '#3a3e43', 'stroke-width': 1.5 }));
-      l.appendChild(el('circle', { cx: 26, cy: 14, r: 10, fill: '#2a2c30', stroke: '#555', 'stroke-width': 1, class: 'sim-dig-led-dot' }));
-      l.appendChild(el('ellipse', { cx: 22, cy: 10, rx: 4, ry: 2.5, fill: '#fff', opacity: .5, class: 'sim-dig-led-gloss' }));
-      l.appendChild(el('text', { x: 26, y: 46, fill: '#eee', 'font-size': 9, 'font-family': 'monospace', 'text-anchor': 'middle' }, ['D' + p]));
-      this.buttons[p] = l;
-      g.appendChild(l);
-      lx += 68;
-    }
-    this._bindButtons();
-    this._renderPwmSliders();
-  }
-
-  /** Rend les sliders PWM (sorties analogWrite) — read-only, pilotés par l'app. */
-  _renderPwmSliders() {
-    const g = this._pwmG;
-    if (!g) return;
-    while (g.firstChild) g.removeChild(g.firstChild);
-    this.pwmSliders = {};
-    const pwmPins = [];
-    for (let p = 2; p <= 13; p++) {
-      const m = this.pinModes[p] || this.pinModes['' + p];
-      if (m === 'PWM') pwmPins.push(p);
-    }
-    if (!pwmPins.length) return;
-    // titre SORTIES PWM
-    g.appendChild(el('text', { x: 20, y: ANA_Y0 + 92, fill: '#e0a35c', 'font-size': 9, 'font-family': 'monospace' }, ['SORTIES PWM (analogWrite)']));
-    const SL_W = 250, SL_X1 = 70, SL_X2 = 420;
-    const rows = [116, 140, 164];
-    for (let i = 0; i < pwmPins.length; i++) {
-      const pin = pwmPins[i];
-      const row = Math.floor(i / 2);
-      const col = i % 2;
-      const y = ANA_Y0 + rows[row];
-      const x1 = col === 0 ? SL_X1 : SL_X2;
-      const x2 = x1 + SL_W;
-      const trace = el('line', { x1: x1, y1: y, x2: x2, y2: y, stroke: '#2a2d30', 'stroke-width': 5, 'stroke-linecap': 'round' });
-      const fill = el('line', { x1: x1, y1: y, x2: x1, y2: y, stroke: '#e0a35c', 'stroke-width': 5, 'stroke-linecap': 'round', class: 'sim-pwm-fill' });
-      const knob = el('circle', { cx: x1, cy: y, r: 6, fill: '#e0a35c', stroke: '#f5d9b0', 'stroke-width': 1.5, class: 'sim-pwm-knob' });
-      const label = el('text', { x: x1 - 12, y: y + 3, fill: '#e0a35c', 'font-size': 8, 'font-family': 'monospace', 'text-anchor': 'end' }, ['D' + pin]);
-      const pct = el('text', { x: x2 + 14, y: y + 3, fill: '#e0a35c', 'font-size': 8, 'font-family': 'monospace', class: 'sim-pwm-pct' }, ['0%']);
-      this.pwmSliders[pin] = { trace, fill, knob, label, pct, x1, x2, y, val: 0 };
-      g.appendChild(trace); g.appendChild(fill); g.appendChild(knob); g.appendChild(label); g.appendChild(pct);
-    }
-  }
-
-  /** Repaint un interrupteur selon son état ON/OFF (track teal/grau, curseur coulé). */
-  _paintSwitch(pin) {
-    const g = this.buttons[pin];
-    if (!g) return;
-    const on = !!this.btnState[pin];
-    const track = g.querySelector('.sim-sw-track');
-    const knob = g.querySelector('.sim-sw-knob');
-    if (track) {
-      track.setAttribute('fill', on ? '#00979D' : '#2b2e31');
-      track.setAttribute('stroke', on ? '#0ec4cc' : '#4a4e53');
-    }
-    if (knob) knob.setAttribute('cx', on ? 39 : 13);
-    g.setAttribute('class', 'sim-btn' + (on ? ' on' : ''));
-  }
-
-  _bindButtons() {
-    for (const pin of Object.keys(this.buttons)) {
-      const g = this.buttons[pin];
-      if (g._bound) continue;
-      g._bound = true;
-      // Interrupteur à bascule : un clic/tap inverse l'état et le verrouille.
-      g.addEventListener('pointerdown', (ev) => {
-        ev.preventDefault();
-      });
-      g.addEventListener('click', (ev) => {
-        ev.preventDefault();
-        this.btnState[pin] = !this.btnState[pin];
-        this._paintSwitch(+pin);
-        const val = this.btnState[pin] ? 1 : 0;
-        this.board.setButton(+pin, val);
-        if (this.hooks.setButton) this.hooks.setButton(+pin, val);
-      });
-      // Clic droit sur une LED de sortie -> menu de choix de couleur
-      if (g.classList && g.classList.contains('sim-dig-led')) {
-        g.addEventListener('contextmenu', (ev) => this._openLedColorMenu(+pin, ev));
+    if (ins.length) {
+      const grp = h('div', 'sim-pin-group');
+      grp.appendChild(h('div', 'sim-group-label', 'Entrées : clique pour basculer'));
+      const row = h('div', 'sim-pin-row');
+      for (const p of ins) {
+        const b = h('button', 'sim-btn');
+        b.type = 'button';
+        b.dataset.pin = p;
+        b.setAttribute('role', 'switch');
+        const track = h('span', 'sim-sw-track');
+        track.appendChild(h('span', 'sim-sw-knob'));
+        b.append(track, h('span', 'sim-pin-name', 'D' + p), h('span', 'sim-sw-state'));
+        b.addEventListener('click', () => {
+          this.btnState[p] = !this.btnState[p];
+          this._paintSwitch(p);
+          const val = this.btnState[p] ? 1 : 0;
+          this.board.setButton(p, val);
+          if (this.hooks.setButton) this.hooks.setButton(p, val);
+        });
+        this.buttons[p] = b;
+        row.appendChild(b);
+        this._paintSwitch(p);
       }
+      grp.appendChild(row);
+      g.appendChild(grp);
+    }
+    if (outs.length) {
+      const grp = h('div', 'sim-pin-group');
+      grp.appendChild(h('div', 'sim-group-label', 'Sorties : clic droit (ou appui long) pour la couleur'));
+      const row = h('div', 'sim-pin-row');
+      for (const p of outs) {
+        const l = h('div', 'sim-dig-led');
+        l.dataset.pin = p;
+        l.title = 'Clic droit ou appui long : changer la couleur';
+        l.append(h('span', 'sim-dig-led-dot'), h('span', 'sim-pin-name', 'D' + p));
+        l.addEventListener('contextmenu', (ev) => this._openLedColorMenu(p, ev));
+        this.buttons[p] = l;
+        row.appendChild(l);
+        this._repaintCtrlLed(p);
+      }
+      grp.appendChild(row);
+      g.appendChild(grp);
     }
   }
 
-  _bindSliders() {
-    for (const ch of Object.keys(this.sliders)) {
-      const s = this.sliders[ch];
-      s.knob.addEventListener('pointerdown', (ev) => {
-        ev.preventDefault();
-        this._dragCh = +ch;
-        this._moveSlider(+ch, ev);
+  /** Jauges des sorties PWM (pilotées par le programme). */
+  _renderPwm() {
+    this._pwmBody.innerHTML = '';
+    this.pwmBars = {};
+    const pins = this._pinsWith('PWM');
+    this._pwmCard.hidden = !pins.length;
+    for (const p of pins) {
+      const row = h('div', 'sim-pwm-row');
+      const bar = h('div', 'sim-pwm-bar');
+      const fill = h('div', 'sim-pwm-fill');
+      bar.appendChild(fill);
+      const val = h('output', 'sim-pwm-val', '0');
+      row.append(h('span', 'sim-pin-name', 'D' + p), bar, val);
+      this._pwmBody.appendChild(row);
+      this.pwmBars[p] = { fill, val, value: 0 };
+    }
+  }
+
+  _paintSwitch(pin) {
+    const b = this.buttons[pin];
+    if (!b) return;
+    const on = !!this.btnState[pin];
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-checked', on ? 'true' : 'false');
+    b.querySelector('.sim-sw-state').textContent = on ? 'HIGH' : 'LOW';
+  }
+
+  _repaintCtrlLed(pin) {
+    const l = this.buttons[pin];
+    if (!l) return;
+    const dot = l.querySelector('.sim-dig-led-dot');
+    const on = !!this._ledOn[pin];
+    const color = this.ledColors[pin] || ON;
+    l.classList.toggle('on', on);
+    dot.style.background = on ? color : '';
+    dot.style.boxShadow = on ? '0 0 14px 4px ' + this._rgba(color, 0.55) : '';
+  }
+
+  /** Menu contextuel de choix de couleur pour une LED de sortie. */
+  _openLedColorMenu(pin, ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const old = document.getElementById('simLedColorMenu');
+    if (old) old.remove();
+    const menu = h('div', 'sim-color-menu');
+    menu.id = 'simLedColorMenu';
+    menu.appendChild(h('div', 'sim-color-title', 'Couleur LED D' + pin));
+    const grid = h('div', 'sim-color-grid');
+    for (const [c, name] of LED_COLORS) {
+      const sw = h('button', 'sim-color-swatch' + (this.ledColors[pin] === c ? ' sel' : ''));
+      sw.type = 'button';
+      sw.style.background = c;
+      sw.title = name;
+      sw.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.ledColors[pin] = c;
+        menu.remove();
+        this._repaintCtrlLed(pin);
       });
+      grid.appendChild(sw);
     }
-    const onMove = (ev) => { if (this._dragCh != null) this._moveSlider(this._dragCh, ev); };
-    const onUp = () => { this._dragCh = null; };
-    this._container.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
+    menu.appendChild(grid);
+    document.body.appendChild(menu);
+    // positionne près du clic, dans les limites de l'écran
+    const r = menu.getBoundingClientRect();
+    menu.style.left = Math.min(ev.clientX, window.innerWidth - r.width - 8) + 'px';
+    menu.style.top = Math.min(ev.clientY, window.innerHeight - r.height - 8) + 'px';
+    const close = (e) => { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('pointerdown', close); } };
+    setTimeout(() => document.addEventListener('pointerdown', close), 0);
   }
 
-  _moveSlider(ch, ev) {
-    const ctm = this._svgEl.getScreenCTM ? this._svgEl.getScreenCTM().inverse() : null;
-    let x = 0;
-    if (ctm) { const p = this._svgEl.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY; x = p.matrixTransform(ctm).x; }
-    const s = this.sliders[ch];
-    x = Math.max(s.x1, Math.min(s.x2, x));
-    this._setSliderValue(ch, Math.round(((x - s.x1) / (s.x2 - s.x1)) * 1023));
+  _rgba(hex, a) {
+    const n = parseInt(hex.slice(1), 16);
+    return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
   }
 
   _setSliderValue(ch, val) {
     const s = this.sliders[ch];
-    s.val = val;
-    const x = s.x1 + ((val / 1023) * (s.x2 - s.x1));
-    s.knob.setAttribute('cx', x);
-    s.fill.setAttribute('x2', x);
-    s.pct.textContent = Math.round((val / 1023) * 100) + '%';
+    s.value = val;
+    s.input.value = val;
+    s.val.textContent = String(val);
+    s.input.style.setProperty('--pct', (val / 1023 * 100) + '%');
     this.board.setAnalog(ch, val);
     if (this.hooks.setAnalog) this.hooks.setAnalog(ch, val);
   }
 
-  _renderAll() {
-    for (let c = 0; c < 6; c++) {
-      const s = this.sliders[c];
-      const x = s.x1 + ((s.val / 1023) * (s.x2 - s.x1));
-      s.knob.setAttribute('cx', x);
-      s.fill.setAttribute('x2', x);
-      s.pct.textContent = Math.round((s.val / 1023) * 100) + '%';
+  /** Repousse l'état des interrupteurs et potentiomètres dans le modèle (après un reset). */
+  syncInputs() {
+    for (let c = 0; c < 6; c++) this.board.setAnalog(c, this.sliders[c].value);
+    for (const p of Object.keys(this.btnState)) this.board.setButton(+p, this.btnState[p] ? 1 : 0);
+  }
+
+  /** Éteint toutes les sorties affichées (début d'un nouveau run). */
+  clearOutputs() {
+    this._paintLed(13, false);
+    for (let p = 2; p <= 13; p++) this._paintLed(p, false);
+    for (const p of Object.keys(this._ledOn)) { this._ledOn[p] = false; this._repaintCtrlLed(+p); }
+    for (const p of Object.keys(this.pwmBars)) this._paintPwm(+p, 0);
+    this._paintTone(null);
+  }
+
+  _paintLed(pin, on) {
+    if (pin === 13 && this.ledBuiltin) {
+      this.ledBuiltin.setAttribute('fill', on ? ON : '#555');
+      this.ledBuiltin.setAttribute('stroke', on ? '#ffe08a' : '#333');
+      if (on) this.ledBuiltin.setAttribute('filter', 'url(#simGlow)'); else this.ledBuiltin.removeAttribute('filter');
     }
+    const t = this.leds[pin];
+    if (t) {
+      t.led.setAttribute('fill', on ? (this.ledColors[pin] || ON) : '#2a2c30');
+      t.led.setAttribute('stroke', on ? '#ffe08a' : '#777');
+      if (on) t.led.setAttribute('filter', 'url(#simGlow)'); else t.led.removeAttribute('filter');
+    }
+  }
+
+  _paintPwm(pin, value) {
+    const b = this.pwmBars[pin];
+    if (!b) return;
+    b.value = value;
+    b.fill.style.width = (value / 255 * 100) + '%';
+    b.val.textContent = String(value);
+  }
+
+  _paintTone(freq) {
+    if (!this._buzIcon) return;
+    this._buzIcon.classList.toggle('on', !!freq);
+    this._buzFreq.textContent = freq ? freq + ' Hz' : 'silencieux';
+  }
+
+  _serialEmpty(empty) {
+    if (this._serialPh) this._serialPh.hidden = !empty;
   }
 
   _onModel(kind, p) {
     if (!p) return;
     if (kind === 'digital' || kind === 'pwm') {
-      const on = p.pin === 13 && p.value > 0;
-      if (this.ledBuiltin) {
-        this.ledBuiltin.setAttribute('fill', on ? ON : '#555');
-        this.ledBuiltin.setAttribute('stroke', on ? '#ffe08a' : '#333');
+      const on = p.value > 0;
+      this._paintLed(p.pin, on);
+      if (this.pinModes[p.pin] === 'OUTPUT') {
+        this._ledOn[p.pin] = on;
+        this._repaintCtrlLed(p.pin);
       }
-      const target = this.leds[13];
-      if (p.pin === 13 && target) {
-        target.led.setAttribute('fill', on ? ON : '#2a2c30');
-        target.led.setAttribute('stroke', on ? '#ffe08a' : '#777');
-      }
-      const pin = this.leds[p.pin];
-      if (pin && p.pin !== 13) {
-        const pinOn = p.value > 0;
-        pin.led.setAttribute('fill', pinOn ? ON : '#2a2c30');
-        pin.led.setAttribute('stroke', pinOn ? '#ffe08a' : '#777');
-      }
-      // LED nommée de la rangée de contrôle (si la pin est en sortie)
-      const ctrl = this.buttons[p.pin];
-      if (ctrl && this.pinModes[p.pin] === 'OUTPUT') {
-        const dot = ctrl.querySelector('.sim-dig-led-dot');
-        const halo = ctrl.querySelector('.sim-dig-led-halo');
-        const gloss = ctrl.querySelector('.sim-dig-led-gloss');
-        const on2 = p.value > 0;
-        this._ledOn = this._ledOn || {};
-        this._ledOn[p.pin] = on2;
-        const color = this.ledColors[p.pin] || '#ffcc4d';
-        if (dot) {
-          dot.setAttribute('fill', on2 ? color : '#2a2c30');
-          dot.setAttribute('stroke', on2 ? '#ffe08a' : '#555');
-        }
-        if (halo) {
-          halo.setAttribute('fill', on2 ? this._rgba(color, 0.35) : 'none');
-          halo.setAttribute('stroke', on2 ? this._rgba(color, 0.6) : 'none');
-        }
-        if (gloss) gloss.setAttribute('opacity', on2 ? 0.85 : 0.5);
-      }
-      // Slider PWM (sortie analogWrite) : l'app fait bouger le curseur
-      if (this.pwmSliders && this.pwmSliders[p.pin]) {
-        const s = this.pwmSliders[p.pin];
-        s.val = p.value; // 0..255
-        const x = s.x1 + ((p.value / 255) * (s.x2 - s.x1));
-        s.knob.setAttribute('cx', x);
-        s.fill.setAttribute('x2', x);
-        s.pct.textContent = Math.round((p.value / 255) * 100) + '%';
-      }
-    } else if (kind === 'analog') {
-      if (this.sliders['' + p.channel]) this._renderAll();
+      if (kind === 'pwm') this._paintPwm(p.pin, p.value);
     } else if (kind === 'tone') {
-      if (this.buzzerEl) {
-        if (p.freq) { this.buzzerEl.freq.textContent = p.freq + ' Hz'; this.buzzerEl.ico.setAttribute('fill', '#ffe08a'); }
-        else { this.buzzerEl.freq.textContent = '— Hz'; this.buzzerEl.ico.setAttribute('fill', '#fff'); }
-      }
+      this._paintTone(p.freq);
     } else if (kind === 'serial' && this.serialBody) {
+      this._serialEmpty(false);
       this.serialBody.textContent += p.text;
       this.serialBody.scrollTop = this.serialBody.scrollHeight;
     }

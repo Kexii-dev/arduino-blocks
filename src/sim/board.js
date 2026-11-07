@@ -121,8 +121,9 @@ export class VirtualBoard {
     this.pinOut.clear();
     this.pwmValue.clear();
     this.toneFreq.clear();
-    this.analogIn = new Array(6).fill(0);
-    this.digitalIn = new Array(14).fill(LOW);
+    // analogIn / digitalIn = position des potentiomètres et interrupteurs : ce sont des
+    // entrées physiques, elles survivent à un redémarrage du programme (sinon l'UI
+    // affiche 50 % alors que analogRead renvoie 0).
     this.serialRx = [];
     this.serialTx = '';
   }
