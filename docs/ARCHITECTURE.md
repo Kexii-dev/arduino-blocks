@@ -63,7 +63,7 @@ Front **statique** (Vite → build `dist/`), servi par nginx. Aucun framework UI
 | `compile.js` | Boutons Compiler / Téléverser, flash Web Serial (avrgirl) |
 | `hack.js` | Popup « hacker » : parse + explique les erreurs de compilation |
 | `account.js` | Comptes : modale login/register (zxcvbn + HIBP), CRUD programmes |
-| `examples.js` | Catalogue d'exemples (6 thèmes × 10 exemples) + builders de blocs + fiches explicatives |
+| `examples.js` | Catalogue d'exemples (6 thèmes, 15 exemples dont 5 pensés pour le simulateur) + builders de blocs + fiches explicatives |
 | `func-help.js` | Aide contextuelle : dictionnaire des fonctions Arduino + diagrammes de broches + tooltip CM6 (survol dans l'éditeur C++) |
 
 `public/lib/` : libs vendues en local (pas de CDN) : `zxcvbn.js`, `passwords_words.js` (diceware EFF), `avrgirl-arduino.global.js`.

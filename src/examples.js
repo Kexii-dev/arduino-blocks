@@ -221,6 +221,130 @@ function buildFonction(ws) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Exemples pensés pour le simulateur (servo animé, bouton-poussoir,   */
+/* envoi série vers la carte, vitesse ×0,25 + bloc surligné).          */
+/* ------------------------------------------------------------------ */
+function numBlock(ws, n) {
+  const b = mk(ws, 'math_number'); b.setFieldValue(n, 'NUM');
+  return b;
+}
+function readPin(ws, pin) {
+  const b = mk(ws, 'arduino_digital_read'); b.setFieldValue(pin, 'PIN');
+  return b;
+}
+function servoTo(ws, deg) {
+  const b = mk(ws, 'arduino_servo'); b.setFieldValue('9', 'PIN'); b.setFieldValue(deg, 'DEG');
+  return b;
+}
+function waitMs(ws, ms) {
+  const b = mk(ws, 'arduino_delay'); b.setFieldValue(ms, 'MS');
+  return b;
+}
+function printValue(ws, value) {
+  const p = mk(ws, 'arduino_serial_print');
+  p.getInput('TEXT').connection.connect(value.outputConnection);
+  return p;
+}
+function printText(ws, text) {
+  const t = mk(ws, 'arduino_text'); t.setFieldValue(text, 'TEXT');
+  return printValue(ws, t);
+}
+
+/* 11. Barrière de parking : bouton D2 -> servo levé + feu vert D4 */
+function buildBarriere(ws) {
+  const ifb = mk(ws, 'arduino_if');
+  ifb.getInput('IF0').connection.connect(readPin(ws, '2').outputConnection);
+  const up = servoTo(ws, 90);
+  ifb.getInput('DO0').connection.connect(up.previousConnection);
+  const vert = mk(ws, 'arduino_digital_write'); vert.setFieldValue('4', 'PIN'); vert.setFieldValue('HIGH', 'STAT');
+  chain(up, vert);
+  const down = servoTo(ws, 0);
+  ifb.getInput('ELSE').connection.connect(down.previousConnection);
+  const eteint = mk(ws, 'arduino_digital_write'); eteint.setFieldValue('4', 'PIN'); eteint.setFieldValue('LOW', 'STAT');
+  chain(down, eteint);
+  chain(ifb, waitMs(ws, 50));
+  renderAll(ws);
+}
+
+/* 12. Sonnette : le buzzer sonne tant que le bouton D2 est enfoncé */
+function buildSonnette(ws) {
+  const ifb = mk(ws, 'arduino_if');
+  ifb.getInput('IF0').connection.connect(readPin(ws, '2').outputConnection);
+  const tone = mk(ws, 'arduino_tone'); tone.setFieldValue('11', 'PIN'); tone.setFieldValue(880, 'FREQ');
+  ifb.getInput('DO0').connection.connect(tone.previousConnection);
+  const notone = mk(ws, 'arduino_notone'); notone.setFieldValue('11', 'PIN');
+  ifb.getInput('ELSE').connection.connect(notone.previousConnection);
+  chain(ifb, waitMs(ws, 20));
+  renderAll(ws);
+}
+
+/* 13. Essuie-glace : le servo balaie de 0° à 180° par pas de 45° */
+function buildEssuieGlace(ws) {
+  let prev = null;
+  for (const deg of [0, 45, 90, 135, 180, 135, 90, 45]) {
+    const s = servoTo(ws, deg);
+    chain(prev, s);
+    const d = waitMs(ws, 250);
+    chain(s, d);
+    prev = d;
+  }
+  renderAll(ws);
+}
+
+/* 14. Compter les appuis : chaque appui sur D2 ajoute 1 et l'affiche */
+function buildCompteAppuis(ws) {
+  declareVar('appuis', 'number');
+  const init = mk(ws, 'arduino_serial_init'); init.setFieldValue(9600, 'BAUD');
+  const vc = mk(ws, 'arduino_var_create'); vc.setFieldValue('appuis', 'NAME'); vc.setFieldValue('number', 'TYPE');
+  chain(init, vc);
+  const ifb = mk(ws, 'arduino_if');
+  ifb.getInput('IF0').connection.connect(readPin(ws, '2').outputConnection);
+  chain(vc, ifb);
+  const inc = mk(ws, 'arduino_var_change'); inc.setFieldValue('appuis', 'VAR'); inc.setFieldValue(1, 'DELTA');
+  ifb.getInput('DO0').connection.connect(inc.previousConnection);
+  const get = mk(ws, 'arduino_var_get'); get.setFieldValue('appuis', 'VAR');
+  const print = printValue(ws, get);
+  chain(inc, print);
+  // attendre que le bouton soit relâché : sinon un seul appui compterait plusieurs fois
+  const wait = mk(ws, 'controls_whileUntil'); wait.setFieldValue('WHILE', 'MODE');
+  wait.getInput('BOOL').connection.connect(readPin(ws, '2').outputConnection);
+  wait.getInput('DO').connection.connect(waitMs(ws, 10).previousConnection);
+  chain(print, wait);
+  renderAll(ws);
+}
+
+/* 15. Commander la LED depuis la console : « a » allume, « e » éteint */
+function buildCommandeSerie(ws) {
+  declareVar('lettre', 'number');
+  const init = mk(ws, 'arduino_serial_init'); init.setFieldValue(9600, 'BAUD');
+  const vc = mk(ws, 'arduino_var_create'); vc.setFieldValue('lettre', 'NAME'); vc.setFieldValue('number', 'TYPE');
+  chain(init, vc);
+  const ifb = mk(ws, 'arduino_if');
+  ifb.getInput('IF0').connection.connect(mk(ws, 'arduino_serial_available').outputConnection);
+  chain(vc, ifb);
+  const set = mk(ws, 'arduino_var_set'); set.setFieldValue('lettre', 'VAR');
+  set.getInput('V').connection.connect(mk(ws, 'arduino_serial_read').outputConnection);
+  ifb.getInput('DO0').connection.connect(set.previousConnection);
+  // une lettre = un code : « a » = 97, « e » = 101 (table ASCII)
+  let prev = set;
+  for (const [code, stat, msg] of [[97, 'HIGH', 'LED allumée'], [101, 'LOW', 'LED éteinte']]) {
+    const test = mk(ws, 'arduino_if');
+    const cmp = mk(ws, 'logic_compare'); cmp.setFieldValue('EQ', 'OP');
+    const get = mk(ws, 'arduino_var_get'); get.setFieldValue('lettre', 'VAR');
+    cmp.getInput('A').connection.connect(get.outputConnection);
+    cmp.getInput('B').connection.connect(numBlock(ws, code).outputConnection);
+    test.getInput('IF0').connection.connect(cmp.outputConnection);
+    const led = mk(ws, 'arduino_led'); led.setFieldValue(stat, 'STAT');
+    test.getInput('DO0').connection.connect(led.previousConnection);
+    chain(led, printText(ws, msg));
+    chain(prev, test);
+    prev = test;
+  }
+  chain(ifb, waitMs(ws, 20));
+  renderAll(ws);
+}
+
+/* ------------------------------------------------------------------ */
 /* Catalogue : thèmes -> exemples                                      */
 /* ------------------------------------------------------------------ */
 export const EXAMPLES = [
@@ -248,6 +372,10 @@ export const EXAMPLES = [
         matos: '1 bouton poussoir sur la broche 2 + 1 LED.',
         expl: 'On lit l\'état du bouton avec digitalRead. S\'il est appuyé (HIGH), on allume la LED ; sinon on l\'éteint.',
         build: buildBouton },
+      { id: 'compteappuis', title: '🔢 Compter les appuis', desc: 'Chaque appui sur le bouton (broche 2) ajoute 1 au compteur, affiché dans la console série.',
+        matos: '1 bouton-poussoir sur la broche 2 (avec résistance de tirage).',
+        expl: 'La variable « appuis » augmente de 1 à chaque appui. La boucle « tant que » attend que le bouton soit relâché : sans elle, un seul appui compterait des dizaines de fois. Dans le simulateur, appuie sur D2 et regarde la console ; passe en vitesse ×0,25 avec « Suivre le programme » pour voir chaque étape.',
+        build: buildCompteAppuis },
     ],
   },
   {
@@ -274,6 +402,18 @@ export const EXAMPLES = [
         matos: '1 servo moteur sur la broche 9.',
         expl: 'Le servo tourne à l\'angle demandé (0 à 180°). On le met à 0°, on attend, puis à 180°, et on recommence.',
         build: buildServo },
+      { id: 'barriere', title: '🚧 Barrière de parking', desc: 'Tant qu\'on appuie sur le bouton (broche 2), la barrière se lève et le feu vert (broche 4) s\'allume.',
+        matos: '1 servo sur la broche 9, 1 bouton sur la broche 2, 1 LED verte sur la broche 4.',
+        expl: 'Si le bouton est enfoncé, le servo tourne à 90° (barrière levée) et la LED s\'allume ; sinon il revient à 0°. Dans le simulateur, garde D2 enfoncé et regarde le servo bouger.',
+        build: buildBarriere },
+      { id: 'sonnette', title: '🔔 Sonnette', desc: 'Le buzzer sonne tant qu\'on appuie sur le bouton (broche 2).',
+        matos: '1 bouton sur la broche 2, 1 buzzer piézo sur la broche 11.',
+        expl: 'Si le bouton est enfoncé, tone() joue 880 Hz ; dès qu\'on le relâche, noTone() coupe le son. Dans le simulateur, appuie sur D2 : la carte Buzzer s\'anime.',
+        build: buildSonnette },
+      { id: 'essuieglace', title: '🌧️ Essuie-glace', desc: 'Le servo balaie de 0° à 180° par pas de 45°, puis revient.',
+        matos: '1 servo moteur sur la broche 9.',
+        expl: 'Chaque bloc « servo » donne un angle, chaque « attendre » laisse le temps au servo d\'y arriver. Dans le simulateur, essaie les vitesses ×0,25 et ×4 pour voir le balayage ralentir ou accélérer.',
+        build: buildEssuieGlace },
     ],
   },
   {
@@ -283,6 +423,10 @@ export const EXAMPLES = [
         matos: 'Câble USB (moniteur série).',
         expl: 'Serial.begin(9600) prépare la communication. Serial.println() envoie le texte. On le voit dans le moniteur série de l\'ordinateur.',
         build: buildSerie },
+      { id: 'commande', title: '⌨️ Commander la LED', desc: 'Envoie « a » pour allumer la LED, « e » pour l\'éteindre.',
+        matos: 'Câble USB (moniteur série).',
+        expl: 'Serial.available() dit si un caractère est arrivé, Serial.read() le lit. Chaque lettre a un code (table ASCII) : « a » = 97, « e » = 101. Dans le simulateur, tape a ou e dans le champ de la console série puis Envoyer.',
+        build: buildCommandeSerie },
     ],
   },
   {
