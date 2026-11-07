@@ -140,8 +140,9 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .acct-hint { font-size: 11px; color: #808080; }
 
 /* ---- compile (barre flottante) ---- */
-#compileBar { position: fixed; right: 16px; bottom: 16px; z-index: 9999; display: flex;
-              flex-direction: column; gap: 6px; font-family: sans-serif; font-size: 13px; align-items: flex-end; }
+/* En bas à GAUCHE : le coin bas-droit appartient aux contrôles Blockly (zoom + poubelle). */
+#compileBar { position: fixed; left: 16px; bottom: 16px; z-index: 9999; display: flex;
+              flex-direction: column; gap: 6px; font-family: sans-serif; font-size: 13px; align-items: flex-start; }
 .compile-btn { padding: 10px 16px; border: 0; border-radius: 8px; cursor: pointer; color: #fff;
                font-weight: 700; font-size: 14px; }
 #compileBtn { background: #00878f; }
