@@ -3,10 +3,19 @@ import * as BlocklyNS from 'blockly/core';
 const Blockly = BlocklyNS.Generator ? BlocklyNS : (BlocklyNS.default || BlocklyNS);
 import { varOptions, varOptionsAll } from './vars.js';
 import { functionOptions } from './functions.js';
+import { toIdent } from './ident.js';
 
 /* Définition des blocs Arduino (I/O, temps, condition). Les blocs de logique,
    boucles, maths et variables viennent de `blockly/blocks` (libraryBlocks). */
 export function defineArduinoBlocks() {
+  /* Les noms de variable / fonction deviennent des identifiants C++ : on corrige la
+     saisie à la volée (« ma fonction » -> ma_fonction, « école » -> ecole, « int » -> int_)
+     pour que l'élève voie le nom réellement utilisé dans le code. */
+  if (!Blockly.Extensions.isRegistered('arduino_ident_name')) {
+    Blockly.Extensions.register('arduino_ident_name', function () {
+      this.getField('NAME').setValidator((v) => toIdent(v));
+    });
+  }
   Blockly.defineBlocksWithJsonArray([
     {
       type: 'arduino_led',
@@ -136,6 +145,7 @@ export function defineArduinoBlocks() {
             { type: 'field_dropdown', name: 'TYPE',
               options: [['nombre', 'number'], ['texte', 'text']] },
           ],
+          extensions: ['arduino_ident_name'],
           previousStatement: null, nextStatement: null,
           colour: '#3b9c5e',
           tooltip: 'Déclare une variable. Choisis le type : nombre (int) ou texte (String).',
@@ -254,6 +264,7 @@ export function defineArduinoBlocks() {
             { type: 'field_input', name: 'NAME', text: 'maFonction' },
             { type: 'input_statement', name: 'BODY' },
           ],
+          extensions: ['arduino_ident_name'],
           previousStatement: null, nextStatement: null,
           colour: '#8a2be2',
           tooltip: 'Définit une fonction réutilisable (à appeler ensuite).',

@@ -4,9 +4,13 @@
 import { buildJsProgram } from './generator-js.js';
 import { HIGH, LOW } from './board.js';
 
+// Levée par fake.tick() quand la simulation a été arrêtée : sort des boucles du programme.
+export class SimStopped extends Error {}
+
 // async() => Promise<number> : resolve après `ms` réels. La boucle ne fige jamais l'UI.
 export function createFakeApi(board, opts = {}) {
   const speed = opts.speed || 1; // 1 = temps réel, >1 = accéléré
+  const isStopped = opts.isStopped || (() => false);
   const api = {
     digitalWrite: (pin, value) => { board.digitalWrite(pin, value); },
     digitalRead: (pin) => board.digitalRead(pin),
@@ -20,6 +24,12 @@ export function createFakeApi(board, opts = {}) {
     serialRead: () => board.serialReadByte(),
     serialAvailable: () => board.serialRxAvailable() ? 1 : 0,
     pinMode: () => {},
+    // Appelé à chaque tour de `tant que` / `répéter` : rend la main à l'UI et
+    // interrompt le programme si la simulation a été arrêtée entre-temps.
+    tick: async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      if (isStopped()) throw new SimStopped();
+    },
   };
   return api;
 }
@@ -32,6 +42,7 @@ export class VirtualEngine {
     this.opts = opts;
     this._running = false;
     this._stopFlag = false;
+    this._runId = 0;          // chaque start() a son id : un ancien run voit qu'il est périmé
     this.onStatus = opts.onStatus || (() => {});
     this.onError = opts.onError || (() => {});
   }
@@ -43,12 +54,15 @@ export class VirtualEngine {
     if (this._running) { this.stop(); }
     this._running = true;
     this._stopFlag = false;
+    const runId = ++this._runId;
+    const isStopped = () => this._stopFlag || runId !== this._runId;
     this.board.reset();
     try {
-      const api = createFakeApi(this.board, this.opts);
+      const api = createFakeApi(this.board, { ...this.opts, isStopped });
       const program = this.getProgram();
-      this._runLoop(api, program).catch((e) => {
-        this._running = false;
+      this._runLoop(api, program, isStopped).catch((e) => {
+        if (e instanceof SimStopped) return; // arrêt demandé : pas une erreur
+        if (runId === this._runId) this._running = false;
         this.onError(e);
       });
     } catch (e) {
@@ -57,7 +71,7 @@ export class VirtualEngine {
     }
   }
 
-  async _runLoop(api, program) {
+  async _runLoop(api, program, isStopped) {
     // buildJsProgram produit : let var; funcs; async function setup(){...} async function loop(){...}
     // On les instancie via Function + fake, puis on itère.
     const body = program + '\nreturn { setup: setup, loop: loop };';
@@ -65,7 +79,7 @@ export class VirtualEngine {
     const { setup, loop } = factory(api, HIGH, LOW);
     this.onStatus('▶ Simulation (virtuelle)…');
     if (setup) await setup();
-    while (this._running && !this._stopFlag) {
+    while (!isStopped()) {
       if (loop) await loop();
       // sécurité anti-boucle infinie serrée sans delay : petit yield pour laisser respirer l'UI
       await new Promise((r) => setTimeout(r, 0));
