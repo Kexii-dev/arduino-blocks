@@ -9,6 +9,23 @@ import { Avr8Engine } from './engine-avr8js.js';
 import { jsGenerator } from './generator-js.js';
 import { collectPinModes } from '../generator.js';
 
+const SPEED_KEY = 'arduino-blocks-sim-speed';
+const SPEEDS = [0.25, 0.5, 1, 2, 4];
+
+/** Modes de broche pour l'UI : ceux du générateur C++ + les servos (sans pinMode en C++). */
+function simPinModes(ws) {
+  const modes = collectPinModes(ws);
+  for (const b of ws.getAllBlocks()) {
+    if (b.type === 'arduino_servo') modes.set(b.getFieldValue('PIN'), 'SERVO');
+  }
+  return modes;
+}
+
+function loadSpeed() {
+  try { const v = Number(localStorage.getItem(SPEED_KEY)); return SPEEDS.includes(v) ? v : 1; }
+  catch (_) { return 1; }
+}
+
 export function initSim(opts) {
   const { getWorkspace, getSource, getArduinoGenerator, compile, containerId, statusEl } = opts;
 
@@ -40,7 +57,13 @@ export function initSim(opts) {
     '<option value="virtual">⚡ Virtuelle (instantanée)</option>' +
     '<option value="avr">🔬 Réelle AVR8js (compile)</option>' +
     '</select>' +
-    '<button id="simRun" class="sim-run" type="button">▶ Lancer</button>' +
+    '<button id="simRun" class="sim-run" type="button" title="Lancer / arrêter (Espace)">▶ Lancer</button>' +
+    '<label class="sim-opt" title="Vitesse du programme (moteur virtuel) : ralentir aide à suivre chaque étape">⏱ ' +
+    '<select id="simSpeed" class="sim-mode sim-speed" aria-label="Vitesse de simulation">' +
+    SPEEDS.map((v) => '<option value="' + v + '">×' + String(v).replace('.', ',') + '</option>').join('') +
+    '</select></label>' +
+    '<label class="sim-opt" title="Surligne le bloc en cours d\u0027exécution (moteur virtuel, jusqu\u0027à ×1)">' +
+    '<input type="checkbox" id="simFollow" checked> Suivre le programme</label>' +
     '<span id="simStatus" class="sim-status" role="status"></span>' +
     '</div>' +
     '<div id="simBoard" class="sim-board"></div>';
@@ -50,7 +73,33 @@ export function initSim(opts) {
   const modeSel = document.getElementById('simMode');
   const runBtn = document.getElementById('simRun');
   const simStatus = document.getElementById('simStatus');
+  const speedSel = document.getElementById('simSpeed');
+  const followChk = document.getElementById('simFollow');
   ui.build(document.getElementById('simBoard'));
+
+  speedSel.value = String(loadSpeed());
+  speedSel.addEventListener('change', () => {
+    const v = Number(speedSel.value);
+    try { localStorage.setItem(SPEED_KEY, String(v)); } catch (_) { /* stockage indisponible */ }
+    if (currentEngine && currentEngine.setSpeed) currentEngine.setSpeed(v);
+    if (v > 1) highlight(null);
+  });
+  // Vitesse et surlignage n'existent qu'en moteur virtuel.
+  function syncOptions() {
+    const virtual = modeSel.value === 'virtual';
+    speedSel.disabled = !virtual;
+    followChk.disabled = !virtual;
+  }
+  modeSel.addEventListener('change', syncOptions);
+  followChk.addEventListener('change', () => { if (!followChk.checked) highlight(null); });
+
+  /** Surligne le bloc exécuté dans l'éditeur (null = efface). Illisible au-delà de ×1. */
+  function highlight(id) {
+    const ws = getWorkspace();
+    if (!ws || !ws.highlightBlock) return;
+    const show = id && followChk.checked && Number(speedSel.value) <= 1;
+    try { ws.highlightBlock(show ? id : null); } catch (_) { /* bloc supprimé entre-temps */ }
+  }
 
   // Pastille d'état : idle (gris) | run (vert pulsé) | err (rouge)
   function setStatus(txt, kind) {
@@ -62,6 +111,7 @@ export function initSim(opts) {
     runBtn.textContent = on ? '■ Arrêter' : '▶ Lancer';
     runBtn.classList.toggle('stop', on);
     modeSel.disabled = on;
+    if (!on) syncOptions();
     if (!on && !simStatus.classList.contains('err')) setStatus('Prêt — clique sur Lancer');
   }
   setStatus('Prêt — clique sur Lancer');
@@ -78,19 +128,20 @@ export function initSim(opts) {
     runningEngine = mode;
     setStatus('Démarrage…', 'run');
     // Broches dynamiques : interrupteur si entrée, LED si sortie (selon le programme)
-    ui.setPinModes(collectPinModes(getWorkspace()));
+    ui.setPinModes(simPinModes(getWorkspace()));
     ui.clearOutputs();
     const onError = (e) => { stopAll(); setStatus('Erreur : ' + (e && e.message ? e.message : e), 'err'); };
     if (mode === 'virtual') {
       const vEng = new VirtualEngine(getWorkspace(), jsGenerator, board, {
-        speed: 1,
+        speed: Number(speedSel.value),
+        onBlock: highlight,
         onStatus: () => {},
         onError,
       });
       currentEngine = vEng;
       setRunning(true);
       vEng.start();
-      setStatus('En cours — bascule les interrupteurs, bouge les potentiomètres', 'run');
+      setStatus('En cours — appuie sur les entrées, bouge les potentiomètres', 'run');
     } else if (mode === 'avr') {
       const aEng = new Avr8Engine(getWorkspace(), getArduinoGenerator(), board, {
         onStatus: (s) => setStatus(s.replace(/^[^\p{L}\d]+/u, ''), 'run'),
@@ -109,8 +160,20 @@ export function initSim(opts) {
 
   // Hors simulation, les contrôles suivent le programme en cours d'édition.
   function refreshPins() {
-    if (!running) ui.setPinModes(collectPinModes(getWorkspace()));
+    if (!running) ui.setPinModes(simPinModes(getWorkspace()));
   }
 
-  return { board, ui, stop: stopAll, isRunning: () => running, refreshPins };
+  /** Lance en moteur virtuel (ex. bouton « Charger et simuler » des exemples). */
+  function runVirtual() {
+    modeSel.value = 'virtual';
+    syncOptions();
+    return run();
+  }
+
+  return {
+    board, ui, stop: stopAll, isRunning: () => running, refreshPins,
+    toggle: () => (running ? stopAll() : run()),
+    restart: run,
+    runVirtual,
+  };
 }

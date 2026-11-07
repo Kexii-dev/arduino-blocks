@@ -10,6 +10,9 @@
 //   - entrée (INPUT)  -> interrupteur nommé (pour la tester)
 //   - sortie (OUTPUT) -> LED nommée (s'allume si HIGH ; clic droit = couleur)
 //   - PWM             -> jauge 0-255 en lecture seule
+//   - SERVO           -> servomoteur dessiné, palonnier orienté selon l'angle
+// Une entrée est un bouton-POUSSOIR (HIGH tant qu'on appuie, défaut) ou un
+// INTERRUPTEUR (bascule) : choix par broche, mémorisé pendant la session.
 
 import unoBg from './assets/uno.svg?raw';
 
@@ -43,7 +46,9 @@ export class BoardUI {
     this.hooks = hooks;     // { setButton(pin,pressed), setAnalog(channel,val) } fournis par le contrôleur
     this.leds = {};         // pin -> { led } témoin SVG au-dessus du trou
     this.buttons = {};      // pin -> élément HTML (interrupteur ou LED nommée)
-    this.btnState = {};     // pin -> boolean (interrupteur ON/OFF)
+    this.btnState = {};     // pin -> boolean (entrée à HIGH)
+    this.inputKind = {};    // pin -> 'push' (défaut) | 'switch'
+    this.servos = {};       // pin -> { horn, val }
     this.sliders = {};      // channel -> { input, value }
     this.pwmBars = {};      // pin -> { fill, value }
     this.pinModes = {};     // pin -> 'INPUT' | 'OUTPUT' | 'PWM'
@@ -56,7 +61,7 @@ export class BoardUI {
   setPinModes(map) {
     this.pinModes = {};
     for (const [pin, mode] of (map || new Map())) this.pinModes[+pin] = mode;
-    if (this._digBody) { this._renderDigital(); this._renderPwm(); }
+    if (this._digBody) { this._renderDigital(); this._renderPwm(); this._renderServos(); }
   }
 
   build(container) {
@@ -122,6 +127,12 @@ export class BoardUI {
     this._pwmCard.appendChild(this._pwmBody);
     side.appendChild(this._pwmCard);
 
+    // Servomoteurs (masquée s'il n'y en a pas)
+    this._servoCard = this._card('⚙️ Servomoteurs', 'sim-card-servo');
+    this._servoBody = h('div', 'sim-servo-list');
+    this._servoCard.appendChild(this._servoBody);
+    side.appendChild(this._servoCard);
+
     // Buzzer
     const buz = this._card('🔊 Buzzer', 'sim-card-buz');
     const buzRow = h('div', 'sim-buz');
@@ -158,6 +169,7 @@ export class BoardUI {
 
     this._renderDigital();
     this._renderPwm();
+    this._renderServos();
     return this;
   }
 
@@ -189,27 +201,9 @@ export class BoardUI {
     }
     if (ins.length) {
       const grp = h('div', 'sim-pin-group');
-      grp.appendChild(h('div', 'sim-group-label', 'Entrées : clique pour basculer'));
+      grp.appendChild(h('div', 'sim-group-label', 'Entrées : appuie (poussoir) ou bascule (interrupteur)'));
       const row = h('div', 'sim-pin-row');
-      for (const p of ins) {
-        const b = h('button', 'sim-btn');
-        b.type = 'button';
-        b.dataset.pin = p;
-        b.setAttribute('role', 'switch');
-        const track = h('span', 'sim-sw-track');
-        track.appendChild(h('span', 'sim-sw-knob'));
-        b.append(track, h('span', 'sim-pin-name', 'D' + p), h('span', 'sim-sw-state'));
-        b.addEventListener('click', () => {
-          this.btnState[p] = !this.btnState[p];
-          this._paintSwitch(p);
-          const val = this.btnState[p] ? 1 : 0;
-          this.board.setButton(p, val);
-          if (this.hooks.setButton) this.hooks.setButton(p, val);
-        });
-        this.buttons[p] = b;
-        row.appendChild(b);
-        this._paintSwitch(p);
-      }
+      for (const p of ins) row.appendChild(this._inputTile(p));
       grp.appendChild(row);
       g.appendChild(grp);
     }
@@ -250,13 +244,91 @@ export class BoardUI {
     }
   }
 
+  /** Tuile d'une entrée : le contrôle (poussoir ou interrupteur) + le choix du type. */
+  _inputTile(p) {
+    const kind = this.inputKind[p] || 'push';
+    const tile = h('div', 'sim-in-tile');
+    const b = h('button', 'sim-btn sim-' + kind);
+    b.type = 'button';
+    b.dataset.pin = p;
+    if (kind === 'switch') {
+      b.setAttribute('role', 'switch');
+      const track = h('span', 'sim-sw-track');
+      track.appendChild(h('span', 'sim-sw-knob'));
+      b.appendChild(track);
+      b.addEventListener('click', () => this._setInput(p, !this.btnState[p]));
+    } else {
+      b.setAttribute('aria-pressed', 'false');
+      b.appendChild(h('span', 'sim-push-cap'));
+      // HIGH tant qu'on appuie (souris, tactile, clavier)
+      b.addEventListener('pointerdown', (ev) => { ev.preventDefault(); b.setPointerCapture(ev.pointerId); this._setInput(p, true); });
+      const up = () => { if (this.btnState[p]) this._setInput(p, false); };
+      b.addEventListener('pointerup', up);
+      b.addEventListener('pointercancel', up);
+      b.addEventListener('keydown', (ev) => { if ((ev.key === ' ' || ev.key === 'Enter') && !ev.repeat) { ev.preventDefault(); this._setInput(p, true); } });
+      b.addEventListener('keyup', (ev) => { if (ev.key === ' ' || ev.key === 'Enter') { ev.preventDefault(); up(); } });
+    }
+    b.append(h('span', 'sim-pin-name', 'D' + p), h('span', 'sim-sw-state'));
+    const sw = h('button', 'sim-kind', kind === 'push' ? '⇄ interrupteur' : '⏺ poussoir');
+    sw.type = 'button';
+    sw.title = 'Changer le type d\u0027entrée';
+    sw.addEventListener('click', () => {
+      this.inputKind[p] = kind === 'push' ? 'switch' : 'push';
+      this._setInput(p, false);
+      tile.replaceWith(this._inputTile(p));
+    });
+    tile.append(b, sw);
+    this.buttons[p] = b;
+    this._paintSwitch(p);
+    return tile;
+  }
+
+  _setInput(p, on) {
+    this.btnState[p] = on;
+    this._paintSwitch(p);
+    const val = on ? 1 : 0;
+    this.board.setButton(p, val);
+    if (this.hooks.setButton) this.hooks.setButton(p, val);
+  }
+
   _paintSwitch(pin) {
     const b = this.buttons[pin];
     if (!b) return;
     const on = !!this.btnState[pin];
     b.classList.toggle('on', on);
-    b.setAttribute('aria-checked', on ? 'true' : 'false');
+    b.setAttribute(b.classList.contains('sim-switch') ? 'aria-checked' : 'aria-pressed', on ? 'true' : 'false');
     b.querySelector('.sim-sw-state').textContent = on ? 'HIGH' : 'LOW';
+  }
+
+  /** Servomoteurs : corps + palonnier qui tourne de 0 à 180°. */
+  _renderServos() {
+    this._servoBody.innerHTML = '';
+    this.servos = {};
+    const pins = this._pinsWith('SERVO');
+    this._servoCard.hidden = !pins.length;
+    for (const p of pins) {
+      const row = h('div', 'sim-servo');
+      const svg = svgEl('svg', { viewBox: '-50 -50 100 60', class: 'sim-servo-svg', 'aria-hidden': 'true' });
+      svg.appendChild(svgEl('path', { d: 'M -40 0 A 40 40 0 0 1 40 0', fill: 'none', stroke: '#3a3e43', 'stroke-width': 2, 'stroke-dasharray': '2 4' }));
+      svg.appendChild(svgEl('rect', { x: -22, y: -6, width: 44, height: 16, rx: 3, fill: '#1f4fa8' }));
+      const horn = svgEl('g', { class: 'sim-servo-horn' });
+      horn.appendChild(svgEl('path', { d: 'M -5 0 L -3 -36 Q 0 -40 3 -36 L 5 0 Z', fill: '#f2f2f2', stroke: '#bbb', 'stroke-width': 1 }));
+      horn.appendChild(svgEl('circle', { cx: 0, cy: 0, r: 7, fill: '#f2f2f2', stroke: '#bbb', 'stroke-width': 1 }));
+      svg.appendChild(horn);
+      const val = h('output', 'sim-servo-val', '90°');
+      row.append(h('span', 'sim-pin-name', 'D' + p), svg, val);
+      this._servoBody.appendChild(row);
+      this.servos[p] = { horn, val };
+      this._paintServo(p, this.board.servoAngle?.get(p) ?? 90);
+    }
+  }
+
+  _paintServo(pin, deg) {
+    const s = this.servos[pin];
+    if (!s) return;
+    // 0° = palonnier à gauche, 90° = vertical, 180° = à droite (vu de dessus)
+    s.horn.style.transform = 'rotate(' + (deg - 90) + 'deg)';
+    s.val.textContent = deg + '°';
   }
 
   _repaintCtrlLed(pin) {
@@ -330,6 +402,7 @@ export class BoardUI {
     for (let p = 2; p <= 13; p++) this._paintLed(p, false);
     for (const p of Object.keys(this._ledOn)) { this._ledOn[p] = false; this._repaintCtrlLed(+p); }
     for (const p of Object.keys(this.pwmBars)) this._paintPwm(+p, 0);
+    for (const p of Object.keys(this.servos)) this._paintServo(+p, 90);
     this._paintTone(null);
   }
 
@@ -375,6 +448,8 @@ export class BoardUI {
         this._repaintCtrlLed(p.pin);
       }
       if (kind === 'pwm') this._paintPwm(p.pin, p.value);
+    } else if (kind === 'servo') {
+      this._paintServo(p.pin, p.deg);
     } else if (kind === 'tone') {
       this._paintTone(p.freq);
     } else if (kind === 'serial' && this.serialBody) {

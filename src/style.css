@@ -190,6 +190,9 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .sim-mode { background: #252526; color: #d4d4d4; border: 1px solid #3c3c3c; border-radius: 8px;
             padding: 8px 10px; font-size: 13px; }
 .sim-mode:disabled { opacity: .6; }
+.sim-opt { display: inline-flex; align-items: center; gap: 5px; color: #aab2b8; font-size: 12px; cursor: pointer; }
+.sim-opt:has(:disabled) { opacity: .5; cursor: default; }
+.sim-speed { padding: 6px 6px; }
 .sim-run { background: #00878f; color: #fff; border: 0; border-radius: 8px; padding: 9px 18px;
            font-weight: 700; font-size: 14px; cursor: pointer; min-width: 112px; }
 .sim-run:hover { background: #009aa3; }
@@ -241,6 +244,23 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .sim-btn.on .sim-sw-knob { transform: translateX(18px); }
 .sim-sw-state { font-family: monospace; font-size: 10px; color: #8a9399; }
 .sim-btn.on .sim-sw-state { color: #7fe3e8; }
+/* entrée en bouton-poussoir : HIGH tant qu'on appuie */
+.sim-in-tile { display: inline-flex; flex-direction: column; align-items: stretch; gap: 4px; }
+.sim-push { touch-action: none; user-select: none; }
+.sim-push-cap { width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #e65b5b, #9e2a2a);
+                border: 3px solid #4a4e53; box-shadow: 0 3px 0 #15171a; transition: transform .05s, box-shadow .05s; }
+.sim-push.on .sim-push-cap { transform: translateY(2px); box-shadow: 0 1px 0 #15171a; border-color: #00979D; }
+.sim-push.on .sim-sw-state { color: #7fe3e8; }
+.sim-kind { background: none; border: 0; padding: 0; color: #6f8a90; font-size: 10px; cursor: pointer; }
+.sim-kind:hover { color: #9fd8db; text-decoration: underline; }
+
+/* servomoteurs */
+.sim-servo-list { display: grid; gap: 8px; }
+.sim-servo { display: grid; grid-template-columns: 30px 1fr 44px; align-items: center; gap: 8px; }
+.sim-servo-svg { width: 100%; max-width: 140px; height: auto; justify-self: center; overflow: visible; }
+.sim-servo-horn { transition: transform .3s ease-out; transform-box: view-box; transform-origin: 0 0; } /* pivot = (0,0) du viewBox */
+.sim-servo-val { font-family: monospace; font-size: 12px; color: #9fd8db; text-align: right; }
+
 .sim-dig-led { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 10px;
                background: #26292c; border: 1px solid #383c40; border-radius: 8px; min-width: 52px; }
 .sim-dig-led-dot { width: 22px; height: 22px; border-radius: 50%; background: #2f3236;
@@ -331,6 +351,9 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .ex-load { background: #00878f; color: #fff; border: none; border-radius: 8px; padding: 10px 14px;
            font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; }
 .ex-load:hover { background: #00979D; }
+.ex-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ex-sim { background: #2a5d3e; }
+.ex-sim:hover { background: #33704b; }
 .ex-empty { color: #888; font-size: 13px; text-align: center; padding: 20px 0; }
 
 /* ---- responsive tablette / PC ---- */

@@ -35,5 +35,8 @@ jobs:
       - name: Run virtual simulator tests
         run: node tests/sim-virtual-test.mjs
 
+      - name: Run simulator lot 1 tests
+        run: node tests/sim-lot1-test.mjs
+
       - name: Build production bundle
         run: npm run build

@@ -31,6 +31,14 @@ Une pin programmée en **entrée** (`digitalRead`) affiche un **bouton nommé** 
 - **Pins PWM 3/5/6/9/10/11 = sorties** (`analogWrite`) : sliders **read-only orange** que **l'app fait bouger** (`_renderPwmSliders()` + `_onModel` sur kind `pwm`). L'utilisateur ne peut pas les toucher.
 - Rangée ANALOG agrandie (`ANA_H=170`, viewBox `0 0 820 880`).
 
+### Interface et options (lot 1, 2026-11-07)
+
+- **Panneau de contrôle en HTML** (`board-ui.js`) : cartes Broches numériques, Entrées analogiques, Sorties PWM, Servomoteurs, Buzzer, Console série. Le SVG ne garde que la carte Uno et ses témoins.
+- **Entrées** : bouton-poussoir (HIGH tant qu'on appuie, défaut) ou interrupteur, au choix par broche.
+- **Servo** : `board.servoWrite(pin, deg)` → `onChange('servo')` → palonnier animé. Les broches servo viennent de `simPinModes()` (`sim.js`), pas de `collectPinModes` (pas de `pinMode` en C++).
+- **Vitesse** (×0,25 à ×4, `localStorage`) et **bloc en cours surligné** : moteur virtuel uniquement. `generator-js` préfixe chaque bloc instruction par `await fake.hl(id)` (sauf les définitions de fonction, émises hors async) ; le moteur regroupe les ids par frame puis appelle `ws.highlightBlock`.
+- **Raccourcis** (fenêtre ouverte, hors champ de saisie et hors bouton focalisé) : Espace lancer/arrêter, R relancer, Échap fermer.
+
 **Fenêtre flottante** : `#simPanelWrap` (un `<aside>`) est déplaçable par la barre de titre, redimensionnable par la poignée bas-droite, agrandissable plein écran (⛶/🗗) et fermable (✕). La logique de fenêtre (drag/resize/clamp/maximiser) vit dans `src/main.js`.
 
 **⚠️ Piège CSS** : un `<aside>` reçoit la règle générique `aside { max-width: 74vw }` qui plafonne la fenêtre à 74 % de l'écran même en plein écran → `#simPanelWrap` ET `.sim-max` doivent forcer `max-width: none` + `max-height: none`.

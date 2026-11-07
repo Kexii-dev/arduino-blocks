@@ -9,8 +9,10 @@ export class SimStopped extends Error {}
 
 // async() => Promise<number> : resolve après `ms` réels. La boucle ne fige jamais l'UI.
 export function createFakeApi(board, opts = {}) {
-  const speed = opts.speed || 1; // 1 = temps réel, >1 = accéléré
+  // vitesse lue à chaque `delay` : elle peut changer pendant la simulation (1 = temps réel)
+  const getSpeed = opts.getSpeed || (() => opts.speed || 1);
   const isStopped = opts.isStopped || (() => false);
+  const onBlock = opts.onBlock || (() => {});
   const api = {
     digitalWrite: (pin, value) => { board.digitalWrite(pin, value); },
     digitalRead: (pin) => board.digitalRead(pin),
@@ -18,12 +20,14 @@ export function createFakeApi(board, opts = {}) {
     analogWrite: (pin, value) => { board.analogWrite(pin, value); },
     tone: (pin, freq) => { board.tone(pin, freq); },
     noTone: (pin) => { board.noTone(pin); },
-    servo: (pin, deg) => { board.onChange('servo', { pin, deg }); },
+    servo: (pin, deg) => { board.servoWrite(pin, deg); },
     serialPrint: async (text) => { board.serialAppend(String(text) + '\n'); },
-    delay: (ms) => new Promise((resolve) => setTimeout(resolve, ms / speed)),
+    delay: (ms) => new Promise((resolve) => setTimeout(resolve, ms / getSpeed())),
     serialRead: () => board.serialReadByte(),
     serialAvailable: () => board.serialRxAvailable() ? 1 : 0,
     pinMode: () => {},
+    // Émis avant chaque bloc instruction (cf. generator-js scrub_) : id du bloc exécuté.
+    hl: async (id) => { onBlock(id); },
     // Appelé à chaque tour de `tant que` / `répéter` : rend la main à l'UI et
     // interrompt le programme si la simulation a été arrêtée entre-temps.
     tick: async () => {
@@ -43,6 +47,8 @@ export class VirtualEngine {
     this._running = false;
     this._stopFlag = false;
     this._runId = 0;          // chaque start() a son id : un ancien run voit qu'il est périmé
+    this.speed = opts.speed || 1;
+    this.onBlock = opts.onBlock || null; // (blockId | null) bloc en cours, au plus une fois par frame
     this.onStatus = opts.onStatus || (() => {});
     this.onError = opts.onError || (() => {});
   }
@@ -58,7 +64,11 @@ export class VirtualEngine {
     const isStopped = () => this._stopFlag || runId !== this._runId;
     this.board.reset();
     try {
-      const api = createFakeApi(this.board, { ...this.opts, isStopped });
+      const api = createFakeApi(this.board, {
+        ...this.opts, isStopped,
+        getSpeed: () => this.speed,
+        onBlock: (id) => { if (runId === this._runId) this._queueBlock(id); },
+      });
       const program = this.getProgram();
       this._runLoop(api, program, isStopped).catch((e) => {
         if (e instanceof SimStopped) return; // arrêt demandé : pas une erreur
@@ -87,8 +97,23 @@ export class VirtualEngine {
     this.onStatus('⏹ Simulation arrêtée');
   }
 
+  setSpeed(s) { this.speed = s > 0 ? s : 1; }
+
+  /** Regroupe les changements de bloc : une boucle rapide ne doit pas saturer le rendu. */
+  _queueBlock(id) {
+    if (!this.onBlock) return;
+    this._pendingBlock = id;
+    if (this._blockFrame) return;
+    const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (f) => setTimeout(f, 16);
+    this._blockFrame = raf(() => {
+      this._blockFrame = null;
+      if (!this._stopFlag) this.onBlock(this._pendingBlock);
+    });
+  }
+
   stop() {
     this._running = false;
     this._stopFlag = true;
+    if (this.onBlock) this.onBlock(null);
   }
 }
