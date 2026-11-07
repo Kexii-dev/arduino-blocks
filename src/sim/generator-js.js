@@ -4,12 +4,13 @@
 // l'exécution ne fige jamais l'UI.
 import * as BlocklyNS from 'blockly/core';
 const Blockly = BlocklyNS.Generator ? BlocklyNS : (BlocklyNS.default || BlocklyNS);
+import { toIdent, toStringLiteral } from '../ident.js';
 
 export const jsGenerator = new Blockly.Generator('ArduinoJS');
 Object.assign(jsGenerator, {
   ORDER_NONE: 99, ORDER_ATOMIC: 0, ORDER_UNARY: 10,
   ORDER_MULTIPLICATIVE: 20, ORDER_ADDITIVE: 30, ORDER_RELATIONAL: 40,
-  ORDER_LOGICAL_NOT: 50, ORDER_LOGICAL_AND: 60, ORDER_LOGICAL_OR: 70,
+  ORDER_LOGICAL_NOT: 10, // `!` est unaire : plus prioritaire que == et && ORDER_LOGICAL_AND: 60, ORDER_LOGICAL_OR: 70,
   ORDER_ASSIGNMENT: 80,
 });
 
@@ -60,13 +61,13 @@ jsGenerator.forBlock['arduino_servo'] = function (block) {
 jsGenerator.forBlock['arduino_var_create'] = function () { return ''; };
 jsGenerator.forBlock['arduino_var_set'] = function (block, generator) {
   const v = generator.valueToCode(block, 'V', jsGenerator.ORDER_ASSIGNMENT) || '0';
-  return block.getFieldValue('VAR') + ' = ' + v + ';\n';
+  return toIdent(block.getFieldValue('VAR')) + ' = ' + v + ';\n';
 };
 jsGenerator.forBlock['arduino_var_change'] = function (block) {
-  return block.getFieldValue('VAR') + ' += ' + block.getFieldValue('DELTA') + ';\n';
+  return toIdent(block.getFieldValue('VAR')) + ' += ' + block.getFieldValue('DELTA') + ';\n';
 };
 jsGenerator.forBlock['arduino_var_get'] = function (block) {
-  return [block.getFieldValue('VAR'), jsGenerator.ORDER_ATOMIC];
+  return [toIdent(block.getFieldValue('VAR')), jsGenerator.ORDER_ATOMIC];
 };
 
 /* série */
@@ -84,11 +85,10 @@ jsGenerator.forBlock['arduino_serial_available'] = function () {
 
 /* textes */
 jsGenerator.forBlock['arduino_text'] = function (block) {
-  const t = block.getFieldValue('TEXT') || '';
-  return ['"' + t.replace(/"/g, '\\"') + '"', jsGenerator.ORDER_ATOMIC];
+  return [toStringLiteral(block.getFieldValue('TEXT')), jsGenerator.ORDER_ATOMIC];
 };
 jsGenerator.forBlock['arduino_text_append'] = function (block, generator) {
-  const v = block.getFieldValue('VAR');
+  const v = toIdent(block.getFieldValue('VAR'));
   const text = generator.valueToCode(block, 'TEXT', jsGenerator.ORDER_NONE) || '""';
   return v + ' += ' + text + ';\n';
 };
@@ -105,20 +105,22 @@ jsGenerator.forBlock['arduino_text_equals'] = function (block, generator) {
 
 /* fonctions */
 jsGenerator.forBlock['arduino_function'] = function (block, generator) {
-  const name = block.getFieldValue('NAME') || 'maFonction';
+  const name = toIdent(block.getFieldValue('NAME')) || 'maFonction';
   const body = generator.statementToCode(block, 'BODY');
   return 'async function ' + name + '() {\n' + body + '}\n';
 };
 jsGenerator.forBlock['arduino_function_call'] = function (block) {
-  return 'await ' + block.getFieldValue('NAME') + '();\n';
+  return 'await ' + toIdent(block.getFieldValue('NAME')) + '();\n';
 };
 
 /* boucle tant que + maths */
 jsGenerator.forBlock['controls_whileUntil'] = function (block, generator) {
   const cond = generator.valueToCode(block, 'BOOL', jsGenerator.ORDER_NONE) || 'false';
   const body = generator.statementToCode(block, 'DO');
-  const inv = block.getFieldValue('MODE') === 'UNTIL' ? '!' : '';
-  return 'while (' + inv + cond + ') {\n' + body + '}\n';
+  const test = block.getFieldValue('MODE') === 'UNTIL' ? '!(' + cond + ')' : cond;
+  // fake.tick() : rend la main à l'UI et sort si la simu est arrêtée (sinon `tant que vrai`
+  // sans « attendre » fige l'onglet et ne s'arrête jamais).
+  return 'while (' + test + ') {\n  await fake.tick();\n' + body + '}\n';
 };
 jsGenerator.forBlock['math_arithmetic'] = function (block, generator) {
   const O = jsGenerator.ORDER_ADDITIVE;
@@ -144,7 +146,7 @@ jsGenerator.forBlock['math_random_int'] = function (block, generator) {
 jsGenerator.forBlock['controls_repeat'] = function (block, generator) {
   const times = block.getFieldValue('TIMES') || '0';
   const branch = generator.statementToCode(block, 'DO');
-  return 'for (let _i = 0; _i < ' + times + '; _i++) {\n' + branch + '}\n';
+  return 'for (let _i = 0; _i < ' + times + '; _i++) {\n  await fake.tick();\n' + branch + '}\n';
 };
 jsGenerator.forBlock['controls_repeat_ext'] = jsGenerator.forBlock['controls_repeat'];
 jsGenerator.forBlock['logic_compare'] = function (block, generator) {
@@ -166,7 +168,7 @@ jsGenerator.forBlock['logic_negate'] = function (block, generator) {
   return ['!' + a, jsGenerator.ORDER_LOGICAL_NOT];
 };
 jsGenerator.forBlock['logic_boolean'] = function (block) {
-  return [block.getFieldValue('BOOL'), jsGenerator.ORDER_ATOMIC];
+  return [block.getFieldValue('BOOL') === 'TRUE' ? 'true' : 'false', jsGenerator.ORDER_ATOMIC]; // champ = 'TRUE'|'FALSE'
 };
 jsGenerator.forBlock['math_number'] = function (block) {
   return [String(block.getFieldValue('NUM')), jsGenerator.ORDER_ATOMIC];
@@ -186,13 +188,13 @@ export function collectJsPreamble(ws) {
   for (const b of ws.getAllBlocks()) {
     if (!b.type) continue;
     if (b.type === 'arduino_var_create') {
-      const n = b.getFieldValue('NAME');
+      const n = toIdent(b.getFieldValue('NAME'));
       if (n) varTypes.set(n, b.getFieldValue('TYPE') === 'text' ? 'text' : 'number');
     } else if (b.type === 'arduino_var_set' || b.type === 'arduino_var_get' || b.type === 'arduino_var_change') {
-      const n = b.getFieldValue('VAR');
+      const n = toIdent(b.getFieldValue('VAR'));
       if (n && !varTypes.has(n)) varTypes.set(n, 'number');
     } else if (b.type === 'arduino_text_append') {
-      const n = b.getFieldValue('VAR');
+      const n = toIdent(b.getFieldValue('VAR'));
       if (n && !varTypes.has(n)) varTypes.set(n, 'text');
     }
   }

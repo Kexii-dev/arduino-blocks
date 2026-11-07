@@ -471,8 +471,9 @@ export function initAccount({ getJson, loadJson, getCode, clearWorkspace }) {
   function showForgotDone(email) {
     const g = $('acctForgot'); if (!g) return;
     g.innerHTML = '<div class="acct-ok">📬 C\u0027est envoyé !</div>' +
-      '<p class="acct-hint">Si un compte existe pour <b>' + email + '</b>, tu vas recevoir un lien de réinitialisation (valable 1 heure).</p>' +
+      '<p class="acct-hint">Si un compte existe pour <b id="acctForgotDoneEmail"></b>, tu vas recevoir un lien de réinitialisation (valable 1 heure).</p>' +
       '<div class="acct-row"><button id="acctForgotDoneLogin" class="acct-btn acct-primary">Revenir à la connexion</button></div>';
+    $('acctForgotDoneEmail').textContent = email; // saisie utilisateur : jamais en innerHTML
     const b = $('acctForgotDoneLogin'); if (b) b.addEventListener('click', () => { switchView('acctGuest', ['acctForgot']); showGuestTab('login'); });
   }
   function showResetDone() {
@@ -497,8 +498,12 @@ export function initAccount({ getJson, loadJson, getCode, clearWorkspace }) {
     users.forEach((u) => {
       const row = document.createElement('div'); row.className = 'acct-admin-row';
       const info = document.createElement('div'); info.className = 'acct-admin-info';
-      info.innerHTML = '<b>' + u.username + '</b> <span class="acct-hint">' + (u.email || '—') + '</span>' +
-        '<br><span class="acct-hint">' + (u.role === 'admin' ? '👑 admin' : '👤 user') + ' · ' + (u.active ? 'actif' : '⛔ inactif') + ' · email ' + (u.email_verified ? '✓' : '✗') + ' · ' + u.programs + ' programme(s)</span>';
+      // username / email viennent des utilisateurs : textContent uniquement (pas d'innerHTML -> pas de XSS admin).
+      const uname = document.createElement('b'); uname.textContent = u.username;
+      const mail = document.createElement('span'); mail.className = 'acct-hint'; mail.textContent = u.email || '—';
+      const meta = document.createElement('span'); meta.className = 'acct-hint';
+      meta.textContent = (u.role === 'admin' ? '👑 admin' : '👤 user') + ' · ' + (u.active ? 'actif' : '⛔ inactif') + ' · email ' + (u.email_verified ? '✓' : '✗') + ' · ' + u.programs + ' programme(s)';
+      info.append(uname, ' ', mail, document.createElement('br'), meta);
       row.appendChild(info);
       const acts = document.createElement('div'); acts.className = 'acct-admin-actions';
       if (state.user.id !== u.id) {

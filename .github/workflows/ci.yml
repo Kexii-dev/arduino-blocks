@@ -29,6 +29,9 @@ jobs:
       - name: Run generator tests (headless)
         run: node tests/gen-test.mjs
 
+      - name: Run P0 regression tests
+        run: node tests/p0-test.mjs
+
       - name: Run virtual simulator tests
         run: node tests/sim-virtual-test.mjs
 
