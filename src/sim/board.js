@@ -35,6 +35,8 @@ export class VirtualBoard {
     this.pwmValue = new Map();
     // Tonalité courante par pin.
     this.toneFreq = new Map();
+    // Servos : pin -> angle 0..180.
+    this.servoAngle = new Map();
   }
 
   /* ---------- Sorties (appelées par les moteurs) ---------- */
@@ -67,6 +69,13 @@ export class VirtualBoard {
     this.toneFreq.delete(pin);
     this.onTone(pin, null);
     this.onChange('tone', { pin, freq: null });
+  }
+
+  /** servo.write : angle 0..180 sur la pin du servo. */
+  servoWrite(pin, deg) {
+    const d = Math.max(0, Math.min(180, Math.round(Number(deg) || 0)));
+    this.servoAngle.set(pin, d);
+    this.onChange('servo', { pin, deg: d });
   }
 
   /** Serial.print : accumulate du texte vers la console série virtuelle. */
@@ -121,6 +130,7 @@ export class VirtualBoard {
     this.pinOut.clear();
     this.pwmValue.clear();
     this.toneFreq.clear();
+    this.servoAngle.clear();
     // analogIn / digitalIn = position des potentiomètres et interrupteurs : ce sont des
     // entrées physiques, elles survivent à un redémarrage du programme (sinon l'UI
     // affiche 50 % alors que analogRead renvoie 0).

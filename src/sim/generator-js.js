@@ -175,6 +175,11 @@ jsGenerator.forBlock['math_number'] = function (block) {
 };
 
 jsGenerator.scrub_ = function (block, code, opt_thisOnly) {
+  // Signale chaque bloc instruction au moteur (bloc en cours surligné). Pas pour les
+  // définitions de fonction : elles sont émises au niveau global, hors async.
+  if (!block.outputConnection && block.type !== 'arduino_function') {
+    code = 'await fake.hl(' + JSON.stringify(block.id) + ');\n' + code;
+  }
   const nextBlock = block.nextConnection && block.nextConnection.targetBlock();
   const nextCode = opt_thisOnly ? '' : this.blockToCode(nextBlock);
   return code + nextCode;

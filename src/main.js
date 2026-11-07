@@ -368,9 +368,11 @@ function renderExDetail() {
     <p>${exSelected.desc}</p>
     <div class="ex-desc">🧰 Matériel : ${exSelected.matos}</div>
     <p>${exSelected.expl}</p>
-    <button class="ex-load" id="exLoadBtn" type="button">Charger cet exemple</button>`;
-  const loadBtn = document.getElementById('exLoadBtn');
-  if (loadBtn) loadBtn.addEventListener('click', () => {
+    <div class="ex-actions">
+      <button class="ex-load" id="exLoadBtn" type="button">Charger cet exemple</button>
+      <button class="ex-load ex-sim" id="exSimBtn" type="button">▶ Charger et simuler</button>
+    </div>`;
+  const load = () => {
     ws.clear();
     exSelected.build(ws);
     refreshCode();
@@ -378,7 +380,11 @@ function renderExDetail() {
     closeExPanel();
     hideWelcome();
     setStatus('✅ Exemple chargé : ' + exSelected.title);
-  });
+  };
+  const loadBtn = document.getElementById('exLoadBtn');
+  if (loadBtn) loadBtn.addEventListener('click', load);
+  const simBtnEx = document.getElementById('exSimBtn');
+  if (simBtnEx) simBtnEx.addEventListener('click', () => { load(); openSim(); sim.runVirtual(); });
 }
 
 /* ---------- Bouton Exemple (header) : ouvre la fenêtre au lieu du confirm ---------- */
@@ -512,6 +518,18 @@ function setMaximized(on) {
 if (simBtn) simBtn.addEventListener('click', toggleSim);
 if (simCloseBtn) simCloseBtn.addEventListener('click', closeSim);
 if (simMaxBtn) simMaxBtn.addEventListener('click', () => setMaximized(!simMaximized));
+
+// Raccourcis quand la fenêtre est ouverte : Espace = lancer/arrêter, R = relancer,
+// Échap = fermer. Ignorés pendant la saisie (champs, éditeur C++) et sur un bouton
+// focalisé (Espace l'active déjà : sinon double déclenchement).
+document.addEventListener('keydown', (e) => {
+  if (!simOpen || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+  const t = e.target;
+  if (t && t.closest && t.closest('input, textarea, select, button, [contenteditable="true"], .cm-editor')) return;
+  if (e.key === ' ') { e.preventDefault(); sim.toggle(); }
+  else if (e.key === 'r' || e.key === 'R') { e.preventDefault(); sim.restart(); }
+  else if (e.key === 'Escape') { closeSim(); }
+});
 
 // Déplacement par la barre de titre (souris + tactile)
 if (simWinBar) {

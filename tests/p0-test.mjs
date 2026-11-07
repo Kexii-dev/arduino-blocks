@@ -28,7 +28,9 @@ const eq = () => {
 const both = (block) => {
   arduinoGenerator.init(ws); jsGenerator.init(ws);
   const c = arduinoGenerator.blockToCode(block, true), j = jsGenerator.blockToCode(block, true);
-  return [Array.isArray(c) ? c[0] : c, Array.isArray(j) ? j[0] : j];
+  // le JS du simulateur préfixe chaque instruction par `await fake.hl(id);` (bloc en cours)
+  const js = Array.isArray(j) ? j[0] : j.replace(/^await fake\.hl\(.*\);\n/gm, '');
+  return [Array.isArray(c) ? c[0] : c, js];
 };
 
 console.log('« pas » garde les parenthèses');

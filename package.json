@@ -13,7 +13,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node tests/gen-test.mjs && node tests/p0-test.mjs && node tests/sim-virtual-test.mjs && echo OK"
+    "test": "node tests/gen-test.mjs && node tests/p0-test.mjs && node tests/sim-virtual-test.mjs && node tests/sim-lot1-test.mjs && echo OK"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",
