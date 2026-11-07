@@ -38,5 +38,8 @@ jobs:
       - name: Run simulator lot 1 tests
         run: node tests/sim-lot1-test.mjs
 
+      - name: Run simulator examples tests
+        run: node tests/ex-sim-test.mjs
+
       - name: Build production bundle
         run: npm run build
